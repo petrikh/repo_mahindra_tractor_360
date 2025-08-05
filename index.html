@@ -36,7 +36,7 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background: url("res/landing/landing_page.jpeg") no-repeat center center;
+            background: url("res/landing/landing.jpeg") no-repeat center center;
             background-size: cover;
             text-align: center;
             z-index: 100;
@@ -214,8 +214,13 @@
             align-items: center;
             transition: background-color 0.3s ease;
         }
+        
+        .popup-arrow-btn.disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
 
-        .popup-arrow-btn:hover {
+        .popup-arrow-btn:not(.disabled):hover {
             background-color: rgba(0, 0, 0, 0.8);
         }
 
@@ -321,86 +326,6 @@
             to { opacity: 1; transform: translateX(-50%) translateY(0); }
         }
 
-        /* New Image Sequence Overlay Styles */
-        #imageSequenceOverlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.95);
-            display: none; /* Hidden by default */
-            justify-content: center;
-            align-items: center;
-            z-index: 250;
-            backdrop-filter: blur(5px);
-        }
-
-        #imageSequenceContainer {
-            position: relative;
-            width: 90%;
-            height: 90%;
-            max-width: 1600px;
-            max-height: 900px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        #sequenceImage {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            border-radius: 10px;
-            box-shadow: 0 0 50px rgba(255, 255, 255, 0.2);
-        }
-
-        .sequence-nav-btn {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            background-color: rgba(0, 0, 0, 0.5);
-            color: white;
-            border: none;
-            padding: 10px;
-            font-size: 2rem;
-            cursor: pointer;
-            z-index: 260;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            transition: background-color 0.3s ease;
-        }
-
-        .sequence-nav-btn:hover {
-            background-color: rgba(0, 0, 0, 0.8);
-        }
-        #sequencePrevBtn { left: 20px; }
-        #sequenceNextBtn { right: 20px; }
-
-        #closeSequenceBtn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background-color: #f44336;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            font-size: 24px;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 260;
-            transition: background-color 0.3s ease;
-        }
-        #closeSequenceBtn:hover {
-            background-color: #d32f2f;
-        }
     </style>
 </head>
 <body>
@@ -442,16 +367,6 @@
         </div>
     </div>
     
-    <!-- New Image Sequence Overlay -->
-    <div id="imageSequenceOverlay">
-        <div id="imageSequenceContainer">
-            <img id="sequenceImage" src="" alt="Image Sequence">
-            <button id="sequencePrevBtn" class="sequence-nav-btn">&lt;</button>
-            <button id="sequenceNextBtn" class="sequence-nav-btn">&gt;</button>
-            <button id="closeSequenceBtn">X</button>
-        </div>
-    </div>
-
     <!-- Three.js library CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
@@ -465,8 +380,12 @@
         let mouse = new THREE.Vector2();
         let hotspotMeshes = [];
         let currentPopupOptionIndex = 0;
-        let currentImageSequence = null;
-        let currentImageSequenceIndex = 0;
+        
+        // New variables for image sequence animation
+        let animationInterval = null;
+        let isAnimating = false;
+        let animationImageIndex = 0;
+        let animationImages = [];
 
         // HTML elements
         const landingPage = document.getElementById('landingPage');
@@ -483,63 +402,79 @@
         const textInfoBox = document.getElementById('textInfoBox');
         const textInfoContent = document.getElementById('textInfoContent');
         const closeTextInfoBtn = document.getElementById('closeTextInfoBtn');
-        const imageSequenceOverlay = document.getElementById('imageSequenceOverlay');
-        const sequenceImage = document.getElementById('sequenceImage');
-        const sequencePrevBtn = document.getElementById('sequencePrevBtn');
-        const sequenceNextBtn = document.getElementById('sequenceNextBtn');
-        const closeSequenceBtn = document.getElementById('closeSequenceBtn');
 
         // Direct URLs for panoramic images and assets
-        const panorama1ImageUrl = "res/3D/360_View_Render1.png";
-        const panorama2ImageUrl = "res/3D/360_View_Render2.png";
-        const panorama3ImageUrl = "res/3D/360_View_Render3.png";
-        
-        // Use a single placeholder for the arrow image
-        const arrowImageUrl = "res/2D/Icons/Directional arrow.png";
-        
+        const panorama1ImageUrl = "res/nav/1.png";
+        const panorama2ImageUrl = "res/nav/2.png";
+        const panorama3ImageUrl = "res/nav/3.png";
+
+        // New variable for the base path of the main popup images
+        let popupImagePath = "res/3D/bonnet_close/";
+        let newPopupImagePath = "res/3D/bonnet_open_360/"; // A new path to switch to
+
         // Data for the popup options, including new 2D hotspots
+        // Note: The imageUrl is now just a filename or relative path.
         const popupOptions = [
             {
-                imageUrl: "res/3D/Tractor 360 bonnet close/2WD_renders0000.png",
+                imageUrl: "1.png",
                 hotspots2D: [
                     { x: 30, y: 50, label: "E", text: "Engine: A high-performance diesel engine for maximum power and efficiency." },
-                    { x: 70, y: 30, label: "L", text: "Headlights: LED headlights for superior visibility during night operations." },
+                    { x: 70, y: 30, label: "L", text: "Headlights: LED headlights for superior visibility during night operations." }
+                ]
+            },
+            {
+                imageUrl: "2.png",
+                hotspots2D: [
+                    { x: 45, y: 60, label: "T", text: "Tires: All-terrain tires designed for stability and traction on any surface." },
+                    { x: 55, y: 25, label: "S", text: "Steering: Hydraulic power steering for effortless control." },
                     {
                       x: 50,
                       y: 80,
-                      label: "D", // New hotspot for the image sequence
-                      type: "image_sequence",
+                      label: "D", // Hotspot for the image sequence
+                      type: "image_sequence_with_path_change",
                       sequenceImages: [
-                          "https://placehold.co/1000x800/123456/FFFFFF?text=Image+1",
-                          "https://placehold.co/1000x800/654321/FFFFFF?text=Image+2",
-                          "https://placehold.co/1000x800/876543/FFFFFF?text=Image+3"
+                          "res/3D/bonnet_open/1.png",
+                          "res/3D/bonnet_open/2.png",
+                          "res/3D/bonnet_open/3.png",
+                          "res/3D/bonnet_open/4.png",
+                          "res/3D/bonnet_open/5.png",
+                          "res/3D/bonnet_open/6.png",
+                          "res/3D/bonnet_open/7.png"
+                      ]
+                    },
+                    {
+                      x: 10,
+                      y: 10,
+                      label: "B",
+                      type: "image_sequence", 
+                      sequenceImages: [
+                          "res/3D/bonnet_open/7.png",
+                          "res/3D/bonnet_open/6.png",
+                          "res/3D/bonnet_open/5.png",
+                          "res/3D/bonnet_open/4.png",
+                          "res/3D/bonnet_open/3.png",
+                          "res/3D/bonnet_open/2.png",
+                          "res/3D/bonnet_open/1.png"
                       ]
                     }
                 ]
             },
             {
-                imageUrl: "res/3D/Tractor 360 bonnet close/2WD_renders0020.png",
-                hotspots2D: [
-                    { x: 45, y: 60, label: "T", text: "Tires: All-terrain tires designed for stability and traction on any surface." },
-                    { x: 55, y: 25, label: "S", text: "Steering: Hydraulic power steering for effortless control." }
-                ]
-            },
-            {
-                imageUrl: "res/3D/Tractor 360 bonnet close/2WD_renders0040.png",
+                imageUrl: "3.png",
                 hotspots2D: [
                     { x: 20, y: 40, label: "H", text: "Hood: Easy-open hood for quick access to service points." },
                     { x: 80, y: 65, label: "F", text: "Fenders: Durable fenders to protect the operator from mud and debris." }
                 ]
             },
             {
-                imageUrl: "res/3D/Tractor 360 bonnet close/2WD_renders0060.png",
+                imageUrl: "4.png",
                 hotspots2D: [
                     { x: 20, y: 40, label: "H", text: "Hood: Easy-open hood for quick access to service points." },
                     { x: 80, y: 65, label: "F", text: "Fenders: Durable fenders to protect the operator from mud and debris." }
                 ]
             },
             {
-                imageUrl: "res/3D/Tractor 360 bonnet close/2WD_renders0080.png",
+                imageUrl: "5.png",
                 hotspots2D: [
                     { x: 20, y: 40, label: "H", text: "Hood: Easy-open hood for quick access to service points." },
                     { x: 80, y: 65, label: "F", text: "Fenders: Durable fenders to protect the operator from mud and debris." }
@@ -592,7 +527,7 @@
                 hotspots: [
                     {
                         id: "popupHotspot3D",
-                        position: new THREE.Vector3(50, -20, -80),
+                        position: new THREE.Vector3(50, 0, -80),
                         type: "popup", // New type to trigger the popup
                         label: "Show Options"
                     },
@@ -665,11 +600,6 @@
 
             // 10. Add event listener for the new close text info button
             closeTextInfoBtn.addEventListener('click', hideTextInfo);
-
-            // 11. Add event listeners for image sequence
-            closeSequenceBtn.addEventListener('click', closeImageSequence);
-            sequencePrevBtn.addEventListener('click', showPrevImage);
-            sequenceNextBtn.addEventListener('click', showNextImage);
         }
 
         /**
@@ -739,8 +669,8 @@
                 hotspotGeometry = new THREE.PlaneGeometry(20, 20);
 
                 // Use an inline SVG for the arrow texture for reliability
-                
-                const arrowTexture = new THREE.TextureLoader().load(arrowImageUrl);
+               
+                const arrowTexture = new THREE.TextureLoader().load("res/ui/nav_arrow.png");
 
                 hotspotMaterial = new THREE.MeshBasicMaterial({
                     map: arrowTexture,
@@ -810,7 +740,7 @@
          */
         function onCanvasClick(event) {
             // Don't trigger hotspots if a popup is visible
-            if (optionsPopup.style.display === 'flex' || videoOverlay.style.display === 'flex' || imageSequenceOverlay.style.display === 'flex') {
+            if (optionsPopup.style.display === 'flex' || videoOverlay.style.display === 'flex') {
                 return;
             }
 
@@ -839,7 +769,7 @@
          * Handles the touch start event.
          */
         function onTouchStart(event) {
-            if (optionsPopup.style.display === 'flex' || videoOverlay.style.display === 'flex' || imageSequenceOverlay.style.display === 'flex') {
+            if (optionsPopup.style.display === 'flex' || videoOverlay.style.display === 'flex') {
                 return;
             }
             if (event.touches.length === 1) {
@@ -853,7 +783,7 @@
          * Handles the touch end event.
          */
         function onTouchEnd(event) {
-            if (optionsPopup.style.display === 'flex' || videoOverlay.style.display === 'flex' || imageSequenceOverlay.style.display === 'flex') {
+            if (optionsPopup.style.display === 'flex' || videoOverlay.style.display === 'flex') {
                 return;
             }
             isDragging = false;
@@ -871,7 +801,7 @@
          * Handles the touch move event.
          */
         function onTouchMove(event) {
-            if (optionsPopup.style.display === 'flex' || videoOverlay.style.display === 'flex' || imageSequenceOverlay.style.display === 'flex') {
+            if (optionsPopup.style.display === 'flex' || videoOverlay.style.display === 'flex') {
                 return;
             }
             if (!isDragging || event.touches.length !== 1) return;
@@ -937,18 +867,42 @@
          * Hides the options popup.
          */
         function hideOptionsPopup() {
+            // Stop any ongoing animation before closing the popup
+            stopImageAnimation();
             optionsPopup.style.display = 'none';
             // Hide the text box when the main popup is closed
             hideTextInfo();
         }
-        
+
+        /**
+         * Disables or enables the main navigation arrows.
+         * @param {boolean} disable - True to disable, false to enable.
+         */
+        function toggleNavigationArrows(disable) {
+            if (disable) {
+                leftArrowBtn.classList.add('disabled');
+                rightArrowBtn.classList.add('disabled');
+                leftArrowBtn.disabled = true;
+                rightArrowBtn.disabled = true;
+            } else {
+                leftArrowBtn.classList.remove('disabled');
+                rightArrowBtn.classList.remove('disabled');
+                leftArrowBtn.disabled = false;
+                rightArrowBtn.disabled = false;
+            }
+        }
+
         /**
          * Updates the image and hotspot links inside the options popup.
          * @param {number} index - The index of the option to display.
          */
         function updatePopupImage(index) {
+            // Stop any previous animation
+            stopImageAnimation();
+
             const option = popupOptions[index];
-            popupImage.src = option.imageUrl;
+            // Construct the full image URL using the dynamic path variable
+            popupImage.src = popupImagePath + option.imageUrl;
             
             // Clear existing 2D hotspots
             hotspot2DContainer.innerHTML = '';
@@ -965,7 +919,14 @@
                     
                     hotspotElement.addEventListener('click', () => {
                         if (hotspotData.type === "image_sequence" && hotspotData.sequenceImages) {
-                            showImageSequence(hotspotData.sequenceImages);
+                            startImageAnimation(hotspotData.sequenceImages);
+                        } else if (hotspotData.type === "image_sequence_with_path_change" && hotspotData.sequenceImages) {
+                            // This hotspot triggers the path change after animation
+                            startImageAnimation(hotspotData.sequenceImages, () => {
+                                popupImagePath = newPopupImagePath;
+                                // Re-render the current popup image with the new path
+                                updatePopupImage(currentPopupOptionIndex);
+                            });
                         } else {
                             showTextInfo(hotspotData.text);
                         }
@@ -983,6 +944,8 @@
          * Shows the next option in the popup, with wrap-around.
          */
         function showNextOption() {
+            // Prevent navigation while an animation is playing
+            if (isAnimating) return;
             currentPopupOptionIndex = (currentPopupOptionIndex + 1) % popupOptions.length;
             updatePopupImage(currentPopupOptionIndex);
         }
@@ -991,6 +954,8 @@
          * Shows the previous option in the popup, with wrap-around.
          */
         function showPreviousOption() {
+            // Prevent navigation while an animation is playing
+            if (isAnimating) return;
             currentPopupOptionIndex = (currentPopupOptionIndex - 1 + popupOptions.length) % popupOptions.length;
             updatePopupImage(currentPopupOptionIndex);
         }
@@ -1010,53 +975,52 @@
         function hideTextInfo() {
             textInfoBox.style.display = 'none';
         }
-        
+
         /**
-         * Shows the image sequence overlay and loads the first image.
-         * @param {string[]} images - An array of image URLs.
+         * Starts the image animation sequence on the main popup image.
+         * @param {string[]} images - An array of image URLs for the sequence.
+         * @param {function} [onComplete] - A callback function to run after the animation completes.
          */
-        function showImageSequence(images) {
-            imageSequenceOverlay.style.display = 'flex';
-            currentImageSequence = images;
-            currentImageSequenceIndex = 0;
-            updateSequenceImage();
+        function startImageAnimation(images, onComplete = null) {
+            // Stop any existing animation
+            stopImageAnimation();
+            
+            isAnimating = true;
+            toggleNavigationArrows(true); // Disable arrows during animation
+
+            animationImages = images;
+            animationImageIndex = 0;
+            const animationDuration = 500; // 2 seconds
+
+            // Function to advance the animation
+            function advanceAnimation() {
+                if (animationImageIndex < animationImages.length) {
+                    popupImage.src = animationImages[animationImageIndex];
+                    animationImageIndex++;
+                } else {
+                    // Loop is complete, stop the animation and call the callback
+                    stopImageAnimation();
+                    if (onComplete) {
+                        onComplete();
+                    }
+                }
+            }
+
+            // Set up the interval to run the animation
+            animationInterval = setInterval(advanceAnimation, animationDuration);
+            advanceAnimation(); // Show the first image immediately
         }
 
         /**
-         * Hides the image sequence overlay.
+         * Stops the image animation and re-enables navigation.
          */
-        function closeImageSequence() {
-            imageSequenceOverlay.style.display = 'none';
-            currentImageSequence = null;
-        }
-
-        /**
-         * Updates the image in the sequence overlay.
-         */
-        function updateSequenceImage() {
-            if (currentImageSequence) {
-                sequenceImage.src = currentImageSequence[currentImageSequenceIndex];
+        function stopImageAnimation() {
+            if (animationInterval) {
+                clearInterval(animationInterval);
+                animationInterval = null;
             }
-        }
-        
-        /**
-         * Shows the next image in the sequence.
-         */
-        function showNextImage() {
-            if (currentImageSequence) {
-                currentImageSequenceIndex = (currentImageSequenceIndex + 1) % currentImageSequence.length;
-                updateSequenceImage();
-            }
-        }
-
-        /**
-         * Shows the previous image in the sequence.
-         */
-        function showPrevImage() {
-            if (currentImageSequence) {
-                currentImageSequenceIndex = (currentImageSequenceIndex - 1 + currentImageSequence.length) % currentImageSequence.length;
-                updateSequenceImage();
-            }
+            isAnimating = false;
+            toggleNavigationArrows(false); // Re-enable arrows after animation
         }
 
         /**
