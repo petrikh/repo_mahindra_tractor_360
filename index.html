@@ -217,8 +217,8 @@
                     },
                     {
                         id: "nextPanoArrow",
-                        position: new THREE.Vector3(80, -20, 0), // Positioned on the floor, pointing forward
-                        rotation: new THREE.Vector3(0, 0, 0), // Rotate to face upwards
+                        position: new THREE.Vector3(80, -20, 0), // Updated arrow position
+                        rotation: new THREE.Vector3(0, 0, 0), // Updated arrow rotation
                         type: "arrow", // Type for navigation hotspot
                         targetPanoIndex: 1, // Points to the second panorama
                         label: "Go to Pano 2"
@@ -230,11 +230,11 @@
                 imageUrl: panorama2ImageUrl,
                 hotspots: [
                     {
-                        id: "backPanoArrow",
-                        position: new THREE.Vector3(80, -20, 0), // Positioned on the floor, pointing back
-                        rotation: new THREE.Vector3(0, 0, 0), // Rotate to face the opposite direction
+                        id: "nextPanoArrow",
+                        position: new THREE.Vector3(80, -20, 0), // Updated arrow position
+                        rotation: new THREE.Vector3(0, 0, 0), // Updated arrow rotation
                         type: "arrow",
-                        targetPanoIndex: 0, // Points back to the first panorama
+                        targetPanoIndex: 2, // Now points to the third panorama
                         label: "Go to Pano 3"
                     }
                 ]
@@ -245,11 +245,11 @@
                 hotspots: [
                     {
                         id: "backPanoArrow",
-                        position: new THREE.Vector3(80, -20, 0), // Positioned on the floor, pointing back
-                        rotation: new THREE.Vector3(0, 0, 0), // Rotate to face the opposite direction
+                        position: new THREE.Vector3(80, -20, 0), // Updated arrow position
+                        rotation: new THREE.Vector3(0, 0, 0), // Updated arrow rotation
                         type: "arrow",
-                        targetPanoIndex: 0, // Points back to the first panorama
-                        label: "Go to Pano 1"
+                        targetPanoIndex: 1, // Points back to the second panorama
+                        label: "Go to Pano 2"
                     }
                 ]
             }
