@@ -156,6 +156,121 @@
         .hotspot-icon:hover {
             transform: scale(1.2);
         }
+
+        /* New styles for the popup */
+        #optionsPopup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: none; /* Hidden by default */
+            justify-content: center;
+            align-items: center;
+            z-index: 150;
+            backdrop-filter: blur(5px);
+        }
+
+        #popupContent {
+            position: relative;
+            width: 90%;
+            height: 90%;
+            max-width: 1600px; /* Limit max size on very large screens */
+            max-height: 900px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 50px rgba(255, 255, 255, 0.2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #popupImage {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Ensures the image fits without being cropped */
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .popup-arrow-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 2rem;
+            cursor: pointer;
+            z-index: 160;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.3s ease;
+        }
+
+        .popup-arrow-btn:hover {
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+
+        #leftArrowBtn {
+            left: 20px;
+        }
+
+        #rightArrowBtn {
+            right: 20px;
+        }
+
+        #closePopupBtn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 160;
+            transition: background-color 0.3s ease;
+        }
+        #closePopupBtn:hover {
+            background-color: #d32f2f;
+        }
+
+        #popupHotspot {
+            position: absolute;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 50px;
+            background-color: rgba(255, 0, 0, 0.7);
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 155;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+            transition: transform 0.2s ease;
+        }
+
+        #popupHotspot:hover {
+            transform: translateX(-50%) scale(1.1);
+        }
     </style>
 </head>
 <body>
@@ -167,6 +282,21 @@
     </div>
 
     <!-- Canvas will be appended here by Three.js -->
+
+    <!-- New Popup for options -->
+    <div id="optionsPopup">
+        <div id="popupContent">
+            <img id="popupImage" src="" alt="Popup Image">
+            <button id="leftArrowBtn" class="popup-arrow-btn">&lt;</button>
+            <button id="rightArrowBtn" class="popup-arrow-btn">&gt;</button>
+            <button id="closePopupBtn">X</button>
+
+            <!-- 2D Hotspot within the popup -->
+            <div id="popupHotspot" style="display:none;">
+                ▶
+            </div>
+        </div>
+    </div>
 
     <!-- Video Overlay -->
     <div id="videoOverlay">
@@ -188,6 +318,7 @@
         let raycaster = new THREE.Raycaster();
         let mouse = new THREE.Vector2();
         let hotspotMeshes = [];
+        let currentPopupOptionIndex = 0;
 
         // HTML elements
         const landingPage = document.getElementById('landingPage');
@@ -195,12 +326,44 @@
         const videoOverlay = document.getElementById('videoOverlay');
         const videoPlayer = document.getElementById('videoPlayer');
         const closeVideoBtn = document.getElementById('closeVideoBtn');
+        const optionsPopup = document.getElementById('optionsPopup');
+        const popupImage = document.getElementById('popupImage');
+        const leftArrowBtn = document.getElementById('leftArrowBtn');
+        const rightArrowBtn = document.getElementById('rightArrowBtn');
+        const closePopupBtn = document.getElementById('closePopupBtn');
+        const popupHotspot = document.getElementById('popupHotspot');
 
         // Direct URLs for panoramic images and assets
         const panorama1ImageUrl = "res/3D/360_View_Render1.png";
         const panorama2ImageUrl = "res/3D/360_View_Render2.png";
         const panorama3ImageUrl = "res/3D/360_View_Render3.png";
-        const arrowImageUrl = "res/2D/Icons/Directional arrow.png"; // White up arrow on a white background
+        
+        // Use a single placeholder for the arrow image
+        const arrowImageUrl = "res/2D/Icons/Directional arrow.png";
+
+        // Data for the popup options
+        const popupOptions = [
+            {
+                imageUrl: "res/3D/Tractor 360 bonnet close/2WD_renders0000.png",
+                videoUrl: "https://youtu.be/BaFyYiw7aRU?si=Iss3T4cxfbd193aJ"
+            },
+            {
+                imageUrl: "res/3D/Tractor 360 bonnet close/2WD_renders0020.png",
+                videoUrl: "https://youtu.be/BaFyYiw7aRU?si=Iss3T4cxfbd193aJ"
+            },
+            {
+                imageUrl: "res/3D/Tractor 360 bonnet close/2WD_renders0040.png",
+                videoUrl: "https://youtu.be/BaFyYiw7aRU?si=Iss3T4cxfbd193aJ"
+            },
+            {
+                imageUrl: "res/3D/Tractor 360 bonnet close/2WD_renders0060.png",
+                videoUrl: "https://youtu.be/BaFyYiw7aRU?si=Iss3T4cxfbd193aJ"
+            },
+            {
+                imageUrl: "res/3D/Tractor 360 bonnet close/2WD_renders0080.png",
+                videoUrl: "https://youtu.be/BaFyYiw7aRU?si=Iss3T4cxfbd193aJ"
+            }
+        ];
 
         // Data structure for panoramic images and their hotspots
         const panoData = [
@@ -217,9 +380,9 @@
                     },
                     {
                         id: "nextPanoArrow",
-                        position: new THREE.Vector3(80, -20, 0), // Updated arrow position
-                        rotation: new THREE.Vector3(0, 0, 0), // Updated arrow rotation
-                        type: "arrow", // Type for navigation hotspot
+                        position: new THREE.Vector3(80, -20, 0),
+                        rotation: new THREE.Vector3(0, -Math.PI / 2, 0),
+                        type: "arrow",
                         targetPanoIndex: 1, // Points to the second panorama
                         label: "Go to Pano 2"
                     }
@@ -231,25 +394,32 @@
                 hotspots: [
                     {
                         id: "nextPanoArrow",
-                        position: new THREE.Vector3(80, -20, 0), // Updated arrow position
-                        rotation: new THREE.Vector3(0, 0, 0), // Updated arrow rotation
+                        position: new THREE.Vector3(80, -20, 0),
+                        rotation: new THREE.Vector3(0, -Math.PI / 2, 0),
                         type: "arrow",
-                        targetPanoIndex: 2, // Now points to the third panorama
+                        targetPanoIndex: 2, // Points to the single Panorama 3
                         label: "Go to Pano 3"
                     }
                 ]
             },
+            // A single panorama for Pano 3, with a popup hotspot
             {
-                name: "Panorama 3",
+                name: "Panorama 3", // Index 2
                 imageUrl: panorama3ImageUrl,
                 hotspots: [
                     {
+                        id: "popupHotspot3D",
+                        position: new THREE.Vector3(50, 0, -80),
+                        type: "popup", // New type to trigger the popup
+                        label: "Show Options"
+                    },
+                    {
                         id: "backPanoArrow",
-                        position: new THREE.Vector3(80, -20, 0), // Updated arrow position
-                        rotation: new THREE.Vector3(0, 0, 0), // Updated arrow rotation
+                        position: new THREE.Vector3(-80, -20, 0),
+                        rotation: new THREE.Vector3(0, Math.PI / 2, 0),
                         type: "arrow",
-                        targetPanoIndex: 1, // Points back to the second panorama
-                        label: "Go to Pano 2"
+                        targetPanoIndex: 1, // Back to Panorama 2
+                        label: "Back"
                     }
                 ]
             }
@@ -302,6 +472,12 @@
 
             // 8. Add event listener for close video button
             closeVideoBtn.addEventListener('click', hideVideo);
+
+            // 9. Add event listeners for new popup
+            closePopupBtn.addEventListener('click', hideOptionsPopup);
+            leftArrowBtn.addEventListener('click', showPreviousOption);
+            rightArrowBtn.addEventListener('click', showNextOption);
+            popupHotspot.addEventListener('click', showVideoFromPopup);
         }
 
         /**
@@ -345,6 +521,10 @@
                 undefined,
                 function (error) {
                     console.error('An error occurred loading the texture:', error);
+                    // Fallback to a plain color if the texture fails to load
+                    material.map = null;
+                    material.color.setHex(0x1a1a1a);
+                    material.needsUpdate = true;
                 }
             );
         }
@@ -356,34 +536,37 @@
         function createHotspot(hotspotData) {
             let hotspotMesh;
             let hotspotMaterial;
+            let hotspotGeometry;
 
             if (hotspotData.type === "arrow") {
                 // Create an arrow plane geometry
-                const hotspotGeometry = new THREE.PlaneGeometry(10, 10);
+                hotspotGeometry = new THREE.PlaneGeometry(10, 10);
                 const loader = new THREE.TextureLoader();
-                const arrowTexture = loader.load(arrowImageUrl); // Use the direct URL
+                const arrowTexture = loader.load(arrowImageUrl);
+                
                 hotspotMaterial = new THREE.MeshBasicMaterial({
                     map: arrowTexture,
                     transparent: true,
                     side: THREE.DoubleSide
                 });
-                hotspotMesh = new THREE.Mesh(hotspotGeometry, hotspotMaterial);
-
-                // Apply position and rotation
-                hotspotMesh.position.copy(hotspotData.position);
-                // hotspotMesh.rotation.copy(hotspotData.rotation);
-                hotspotMesh.rotation.x = 3.14/2;
-
+                
             } else {
-                // Default to a spherical hotspot for other types (like video)
-                const hotspotGeometry = new THREE.SphereGeometry(3, 32, 32);
+                // Default to a spherical hotspot for other types (like video or popup)
+                hotspotGeometry = new THREE.SphereGeometry(3, 32, 32);
                 hotspotMaterial = new THREE.MeshBasicMaterial({
                     color: 0xffa500,
                     transparent: true,
                     opacity: 0.8
                 });
-                hotspotMesh = new THREE.Mesh(hotspotGeometry, hotspotMaterial);
-                hotspotMesh.position.copy(hotspotData.position);
+            }
+            
+            hotspotMesh = new THREE.Mesh(hotspotGeometry, hotspotMaterial);
+
+            // Apply position and rotation
+            hotspotMesh.position.copy(hotspotData.position);
+            if (hotspotData.rotation) {
+                // hotspotMesh.rotation.copy(hotspotData.rotation);
+                hotspotMesh.rotation.x = 3.14/2;
             }
 
             // Store hotspot data directly on the mesh for easy access during raycasting
@@ -427,6 +610,11 @@
          * Handles clicks on the canvas for hotspot interaction.
          */
         function onCanvasClick(event) {
+            // Don't trigger hotspots if a popup is visible
+            if (optionsPopup.style.display === 'flex' || videoOverlay.style.display === 'flex') {
+                return;
+            }
+
             mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
             mouse.y = - (event.clientY / renderer.domElement.clientHeight) * 2 + 1;
             raycaster.setFromCamera(mouse, camera);
@@ -441,6 +629,9 @@
                 } else if (hotspotData && hotspotData.type === "video" && hotspotData.videoUrl) {
                     // This is a video hotspot
                     showVideo(hotspotData.videoUrl);
+                } else if (hotspotData && hotspotData.type === "popup") {
+                    // New popup hotspot
+                    showOptionsPopup();
                 }
             }
         }
@@ -449,6 +640,9 @@
          * Handles the touch start event.
          */
         function onTouchStart(event) {
+            if (optionsPopup.style.display === 'flex' || videoOverlay.style.display === 'flex') {
+                return;
+            }
             if (event.touches.length === 1) {
                 isDragging = true;
                 previousMousePosition.x = event.touches[0].clientX;
@@ -460,6 +654,9 @@
          * Handles the touch end event.
          */
         function onTouchEnd(event) {
+            if (optionsPopup.style.display === 'flex' || videoOverlay.style.display === 'flex') {
+                return;
+            }
             isDragging = false;
             if (event.changedTouches.length > 0) {
                 const touch = event.changedTouches[0];
@@ -475,6 +672,9 @@
          * Handles the touch move event.
          */
         function onTouchMove(event) {
+            if (optionsPopup.style.display === 'flex' || videoOverlay.style.display === 'flex') {
+                return;
+            }
             if (!isDragging || event.touches.length !== 1) return;
             const deltaX = event.touches[0].clientX - previousMousePosition.x;
             const horizontalRotationSpeed = 0.005;
@@ -520,6 +720,65 @@
         function hideVideo() {
             videoPlayer.src = '';
             videoOverlay.style.display = 'none';
+        }
+
+        /**
+         * Shows the options popup and loads the first image.
+         */
+        function showOptionsPopup() {
+            optionsPopup.style.display = 'flex';
+            currentPopupOptionIndex = 0;
+            updatePopupImage(currentPopupOptionIndex);
+        }
+
+        /**
+         * Hides the options popup.
+         */
+        function hideOptionsPopup() {
+            optionsPopup.style.display = 'none';
+        }
+        
+        /**
+         * Updates the image and hotspot link inside the options popup.
+         * @param {number} index - The index of the option to display.
+         */
+        function updatePopupImage(index) {
+            const option = popupOptions[index];
+            popupImage.src = option.imageUrl;
+            
+            // Show or hide the video hotspot based on the current option
+            if (option.videoUrl) {
+                popupHotspot.style.display = 'flex';
+                popupHotspot.dataset.videoUrl = option.videoUrl;
+            } else {
+                popupHotspot.style.display = 'none';
+            }
+        }
+
+        /**
+         * Shows the next option in the popup, with wrap-around.
+         */
+        function showNextOption() {
+            currentPopupOptionIndex = (currentPopupOptionIndex + 1) % popupOptions.length;
+            updatePopupImage(currentPopupOptionIndex);
+        }
+
+        /**
+         * Shows the previous option in the popup, with wrap-around.
+         */
+        function showPreviousOption() {
+            currentPopupOptionIndex = (currentPopupOptionIndex - 1 + popupOptions.length) % popupOptions.length;
+            updatePopupImage(currentPopupOptionIndex);
+        }
+
+        /**
+         * Plays the video associated with the current popup option.
+         */
+        function showVideoFromPopup() {
+            const videoUrl = popupHotspot.dataset.videoUrl;
+            if (videoUrl) {
+                showVideo(videoUrl);
+            }
         }
 
         /**
