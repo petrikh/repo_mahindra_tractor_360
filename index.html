@@ -244,37 +244,6 @@
             transition: transform 0.3s ease; /* Smooth zoom transition */
         }
 
-        .popup-arrow-btn {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            background-color: rgba(0, 0, 0, 0.5);
-            color: white;
-            border: none;
-            padding: 10px;
-            font-size: 2rem;
-            cursor: pointer;
-            z-index: 160;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            transition: background-color 0.3s ease;
-        }
-        .popup-arrow-btn:hover {
-            background-color: rgba(0, 0, 0, 0.8);
-        }
-
-        #leftArrowBtn {
-            left: 20px;
-        }
-
-        #rightArrowBtn {
-            right: 20px;
-        }
-
         #closePopupBtn {
             position: absolute;
             top: 10px;
@@ -397,13 +366,20 @@
             to { opacity: 1; transform: translateX(-50%) translateY(0); }
         }
 
-        /* New styles for zoom buttons */
+        /* New styles for zoom buttons and slider */
         #popupControls {
             position: absolute;
             bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
             display: flex;
-            gap: 20px;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
             z-index: 160;
+            background-color: rgba(0,0,0,0.5);
+            padding: 10px 20px;
+            border-radius: 25px;
         }
 
         .zoom-btn {
@@ -426,6 +402,45 @@
             background-color: rgba(0, 0, 0, 0.8);
             transform: scale(1.1);
         }
+        
+        /* New styles for the option slider */
+        .option-slider {
+            -webkit-appearance: none; /* Override default CSS */
+            appearance: none;
+            width: 250px; /* Adjust width as needed */
+            height: 8px; /* Slider track height */
+            background: #555; /* Slider track color */
+            outline: none;
+            opacity: 0.7;
+            transition: opacity .2s;
+            border-radius: 5px;
+            margin: 0 15px; /* Add some margin */
+        }
+
+        .option-slider:hover {
+            opacity: 1; /* Fully visible on hover */
+        }
+
+        .option-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px; /* Thumb width */
+            height: 20px; /* Thumb height */
+            background: #fff; /* Thumb color */
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid #333;
+        }
+
+        .option-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid #333;
+        }
+
 
         /* Styles for the new vertical toolbar */
         #verticalToolbar {
@@ -504,14 +519,12 @@
                 <p id="textInfoContent"></p>
                 <button id="closeTextInfoBtn">X</button>
             </div>
-
-            <button id="leftArrowBtn" class="popup-arrow-btn">&lt;</button>
-            <button id="rightArrowBtn" class="popup-arrow-btn">&gt;</button>
             
             <button id="closePopupBtn"></button>
 
             <div id="popupControls">
                 <button id="zoomOutBtn" class="zoom-btn">-</button>
+                <input type="range" id="optionSlider" class="option-slider" value="0" min="0">
                 <button id="zoomInBtn" class="zoom-btn">+</button>
             </div>
 
@@ -582,8 +595,6 @@
         const optionsPopup = document.getElementById('optionsPopup');
         const popupContent = document.getElementById('popupContent');
         const popupImage = document.getElementById('popupImage');
-        const leftArrowBtn = document.getElementById('leftArrowBtn');
-        const rightArrowBtn = document.getElementById('rightArrowBtn');
         const closePopupBtn = document.getElementById('closePopupBtn');
         const hotspot2DContainer = document.getElementById('hotspot2DContainer');
         const textInfoBox = document.getElementById('textInfoBox');
@@ -594,6 +605,7 @@
         const static360Icon = document.getElementById('static360Icon');
         const zoomInBtn = document.getElementById('zoomInBtn');
         const zoomOutBtn = document.getElementById('zoomOutBtn');
+        const optionSlider = document.getElementById('optionSlider');
         
         // New Toolbar Elements
         const verticalToolbar = document.getElementById('verticalToolbar');
@@ -790,8 +802,8 @@
 
             // 9. Add event listeners for new popup
             closePopupBtn.addEventListener('click', hideOptionsPopup);
-            leftArrowBtn.addEventListener('click', showPreviousOption);
-            rightArrowBtn.addEventListener('click', showNextOption);
+            optionSlider.addEventListener('input', onSliderChange); // SLIDER event listener
+            
             // New event listeners for popup drag functionality
             popupContent.addEventListener('mousedown', onPopupMouseDown);
             popupContent.addEventListener('mouseup', onPopupMouseUp);
@@ -1077,6 +1089,11 @@
         function showOptionsPopup() {
             optionsPopup.style.display = 'flex';
             currentPopupOptionIndex = 0;
+            
+            // Configure the slider
+            optionSlider.max = popupOptions.length - 1;
+            optionSlider.value = currentPopupOptionIndex;
+
             updatePopupImage(currentPopupOptionIndex);
             // Hide the static 360 icon and toolbar when the popup is open
             static360Icon.style.opacity = '0';
@@ -1161,6 +1178,9 @@
                 });
             }
             
+            // Update the slider's value to match the current image index
+            optionSlider.value = index;
+
             // Hide any currently visible text info when a new image is loaded
             hideTextInfo();
         }
@@ -1227,21 +1247,15 @@
         }
 
         /**
-         * Shows the next image in the options popup.
+         * Handles changes from the option slider.
          */
-        function showNextOption() {
+        function onSliderChange() {
             if (isAnimating) return;
-            currentPopupOptionIndex = (currentPopupOptionIndex + 1) % popupOptions.length;
-            updatePopupImage(currentPopupOptionIndex);
-        }
-
-        /**
-         * Shows the previous image in the options popup.
-         */
-        function showPreviousOption() {
-            if (isAnimating) return;
-            currentPopupOptionIndex = (currentPopupOptionIndex - 1 + popupOptions.length) % popupOptions.length;
-            updatePopupImage(currentPopupOptionIndex);
+            const newIndex = parseInt(optionSlider.value, 10);
+            if (newIndex !== currentPopupOptionIndex) {
+                currentPopupOptionIndex = newIndex;
+                updatePopupImage(currentPopupOptionIndex);
+            }
         }
 
         /**
@@ -1302,7 +1316,7 @@
          */
         function onPopupMouseDown(event) {
             // Prevent dragging if the user clicks on a hotspot
-            if (event.target.classList.contains('hotspot-2d')) return;
+            if (event.target.classList.contains('hotspot-2d') || event.target.id === 'optionSlider') return;
 
             isPopupDragging = true;
             startPopupDragX = event.clientX;
@@ -1362,7 +1376,7 @@
          * Handles the touch start event for the popup image.
          */
         function onPopupTouchStart(event) {
-            if (event.touches.length === 1 && !event.target.classList.contains('hotspot-2d')) {
+            if (event.touches.length === 1 && !event.target.classList.contains('hotspot-2d') && event.target.id !== 'optionSlider') {
                 isPopupDragging = true;
                 startPopupDragX = event.touches[0].clientX;
                 startPopupDragY = event.touches[0].clientY;
