@@ -334,6 +334,28 @@
             background-color: rgba(0, 255, 255, 1);
         }
 
+        /* Static 360 Icon */
+        #static360Icon {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 80px;
+            height: 80px;
+            z-index: 110;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease-in-out;
+            border-radius: 50%; /* Make it circular */
+            overflow: hidden; /* Hide parts of the video outside the circle */
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3); /* Optional: add a subtle glow */
+        }
+
+        #static360Icon video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Ensures the video fills the container */
+        }
+
         /* Styles for the text info box */
         #textInfoBox {
             position: absolute;
@@ -421,6 +443,11 @@
         </div>
     </div>
     
+    <!-- Static 360 Icon -->
+    <div id="static360Icon">
+        <video src="res/ui/360.webm" autoplay loop muted playsinline></video>
+    </div>
+
     <!-- Three.js library CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
@@ -458,6 +485,7 @@
         const closeTextInfoBtn = document.getElementById('closeTextInfoBtn');
         const instructionPopupOverlay = document.getElementById('instructionPopupOverlay');
         const closeInstructionBtn = document.getElementById('closeInstructionBtn');
+        const static360Icon = document.getElementById('static360Icon');
 
         // Direct URLs for panoramic images and assets
         const panorama1ImageUrl = "res/nav/1.png";
@@ -895,6 +923,8 @@
             }
             videoPlayer.src = embedUrl;
             videoOverlay.style.display = 'flex';
+            // Hide the static 360 icon when video is playing
+            static360Icon.style.opacity = '0';
         }
 
         /**
@@ -903,6 +933,8 @@
         function hideVideo() {
             videoPlayer.src = '';
             videoOverlay.style.display = 'none';
+            // Show the static 360 icon again
+            static360Icon.style.opacity = '1';
         }
 
         /**
@@ -917,6 +949,8 @@
          */
         function hideInstructionPopup() {
             instructionPopupOverlay.style.display = 'none';
+            // Show the static 360 icon for the first time
+            static360Icon.style.opacity = '1';
         }
 
         /**
@@ -926,6 +960,8 @@
             optionsPopup.style.display = 'flex';
             currentPopupOptionIndex = 0;
             updatePopupImage(currentPopupOptionIndex);
+            // Hide the static 360 icon when the popup is open
+            static360Icon.style.opacity = '0';
         }
 
         /**
@@ -937,6 +973,8 @@
             optionsPopup.style.display = 'none';
             // Hide the text box when the main popup is closed
             hideTextInfo();
+            // Show the static 360 icon again
+            static360Icon.style.opacity = '1';
         }
 
         /**
