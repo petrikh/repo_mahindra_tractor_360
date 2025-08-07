@@ -432,17 +432,15 @@
         .toolbar-btn {
             background-color: rgba(0, 0, 0, 0.6);
             border: 2px solid white;
-            color: white;
             border-radius: 50%;
             width: 50px;
             height: 50px;
-            font-size: 14px;
-            font-weight: bold;
             cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             transition: background-color 0.3s ease, transform 0.2s ease;
+            /* Added styles for background images */
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: 60%; /* Adjust size of icon inside button */
         }
 
         .toolbar-btn:hover {
@@ -450,6 +448,19 @@
             transform: scale(1.1);
         }
 
+        /* Set specific background images for each button */
+        #fullscreenBtn {
+            background-image: url('res/ui/full_screen.png');
+        }
+
+        #zoomIn360Btn {
+            background-image: url('res/ui/zoom_in.png');
+        }
+
+        #zoomOut360Btn {
+            background-image: url('res/ui/zoom_out.png');
+        }
+        /* The sound button's image is set via JavaScript */
 
     </style>
 </head>
@@ -465,10 +476,10 @@
     </div>
     
     <div id="verticalToolbar">
-        <button id="fullscreenBtn" class="toolbar-btn">Full</button>
-        <button id="zoomIn360Btn" class="toolbar-btn">+</button>
-        <button id="zoomOut360Btn" class="toolbar-btn">-</button>
-        <button id="soundBtn" class="toolbar-btn">Sound</button>
+        <button id="fullscreenBtn" class="toolbar-btn"></button>
+        <button id="zoomIn360Btn" class="toolbar-btn"></button>
+        <button id="zoomOut360Btn" class="toolbar-btn"></button>
+        <button id="soundBtn" class="toolbar-btn"></button>
     </div>
 
 
@@ -789,7 +800,7 @@
             zoomIn360Btn.addEventListener('click', zoomIn360);
             zoomOut360Btn.addEventListener('click', zoomOut360);
             soundBtn.addEventListener('click', toggleSound);
-            updateSoundButton(); // Set initial text
+            updateSoundButton(); // Set initial sound button image
         }
 
         /**
@@ -1433,10 +1444,14 @@
         }
         
         /**
-         * NEW: Updates the sound button text.
+         * NEW: Updates the sound button's background image based on the sound state.
          */
         function updateSoundButton() {
-            soundBtn.textContent = isSoundOn ? 'Mute' : 'Sound';
+            if (isSoundOn) {
+                soundBtn.style.backgroundImage = "url('res/ui/vol_on.png')";
+            } else {
+                soundBtn.style.backgroundImage = "url('res/ui/vol_off.png')";
+            }
         }
 
 
