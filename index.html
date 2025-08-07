@@ -241,6 +241,38 @@
             top: 0;
             left: 0;
             user-select: none; /* Prevent image from being selected while dragging */
+            transition: transform 0.3s ease; /* Smooth zoom transition */
+        }
+
+        .popup-arrow-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 2rem;
+            cursor: pointer;
+            z-index: 160;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.3s ease;
+        }
+        .popup-arrow-btn:hover {
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+
+        #leftArrowBtn {
+            left: 20px;
+        }
+
+        #rightArrowBtn {
+            right: 20px;
         }
 
         #closePopupBtn {
@@ -271,26 +303,24 @@
         }
         .hotspot-2d {
             position: absolute;
-            width: 30px;
-            height: 30px;
-            background-color: rgba(0, 255, 255, 0.7);
-            border: 2px solid white;
+            width: 40px; /* Increased size for video */
+            height: 40px;
             border-radius: 50%;
             cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            font-weight: bold;
-            font-size: 1.2rem;
-            transition: transform 0.2s ease, background-color 0.3s ease;
-            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            transition: transform 0.2s ease;
             pointer-events: auto; /* Re-enable clicks for the hotspot itself */
             transform: translate(-50%, -50%); /* Center the hotspot icon on the specified coordinates */
+            overflow: hidden; /* Crop video to the circular shape */
+        }
+        .hotspot-2d video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            mix-blend-mode: screen; /* Makes black areas transparent, similar to additive blending */
+            pointer-events: none; /* Ensure clicks are registered on the parent div */
         }
         .hotspot-2d:hover {
             transform: translate(-50%, -50%) scale(1.2);
-            background-color: rgba(0, 255, 255, 1);
         }
 
         /* Static 360 Icon */
@@ -354,6 +384,36 @@
             to { opacity: 1; transform: translateX(-50%) translateY(0); }
         }
 
+        /* New styles for zoom buttons */
+        #popupControls {
+            position: absolute;
+            bottom: 20px;
+            display: flex;
+            gap: 20px;
+            z-index: 160;
+        }
+
+        .zoom-btn {
+            background-color: rgba(0, 0, 0, 0.6);
+            border: 2px solid white;
+            color: white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        .zoom-btn:hover {
+            background-color: rgba(0, 0, 0, 0.8);
+            transform: scale(1.1);
+        }
+
     </style>
 </head>
 <body>
@@ -384,8 +444,17 @@
                 <p id="textInfoContent"></p>
                 <button id="closeTextInfoBtn">X</button>
             </div>
+
+            <button id="leftArrowBtn" class="popup-arrow-btn">&lt;</button>
+            <button id="rightArrowBtn" class="popup-arrow-btn">&gt;</button>
             
             <button id="closePopupBtn"></button>
+
+            <!-- New controls container for zoom buttons -->
+            <div id="popupControls">
+                <button id="zoomOutBtn" class="zoom-btn">-</button>
+                <button id="zoomInBtn" class="zoom-btn">+</button>
+            </div>
         </div>
     </div>
 
@@ -428,7 +497,17 @@
         // New variables for popup image dragging
         let isPopupDragging = false;
         let startPopupDragX = 0;
+        let startPopupDragY = 0; // Added for vertical pan
         const dragThreshold = 50; // pixels to trigger an image change
+
+        // Variables for zooming and panning
+        let zoomLevel = 1;
+        let maxZoom = 3;
+        let minZoom = 1;
+        let panX = 0;
+        let panY = 0;
+        let startPanX = 0;
+        let startPanY = 0;
 
         // HTML elements
         const landingPage = document.getElementById('landingPage');
@@ -439,6 +518,8 @@
         const optionsPopup = document.getElementById('optionsPopup');
         const popupContent = document.getElementById('popupContent');
         const popupImage = document.getElementById('popupImage');
+        const leftArrowBtn = document.getElementById('leftArrowBtn');
+        const rightArrowBtn = document.getElementById('rightArrowBtn');
         const closePopupBtn = document.getElementById('closePopupBtn');
         const hotspot2DContainer = document.getElementById('hotspot2DContainer');
         const textInfoBox = document.getElementById('textInfoBox');
@@ -447,6 +528,9 @@
         const instructionPopupOverlay = document.getElementById('instructionPopupOverlay');
         const closeInstructionBtn = document.getElementById('closeInstructionBtn');
         const static360Icon = document.getElementById('static360Icon');
+        const zoomInBtn = document.getElementById('zoomInBtn');
+        const zoomOutBtn = document.getElementById('zoomOutBtn');
+
 
         // Direct URLs for panoramic images and assets
         const panorama1ImageUrl = "res/nav/1.png";
@@ -635,6 +719,8 @@
 
             // 9. Add event listeners for new popup
             closePopupBtn.addEventListener('click', hideOptionsPopup);
+            leftArrowBtn.addEventListener('click', showPreviousOption);
+            rightArrowBtn.addEventListener('click', showNextOption);
             // New event listeners for popup drag functionality
             popupContent.addEventListener('mousedown', onPopupMouseDown);
             popupContent.addEventListener('mouseup', onPopupMouseUp);
@@ -649,6 +735,10 @@
 
             // 11. Add event listener for instruction popup close button
             closeInstructionBtn.addEventListener('click', hideInstructionPopup);
+
+            // 12. Add event listeners for zoom buttons
+            zoomInBtn.addEventListener('click', zoomIn);
+            zoomOutBtn.addEventListener('click', zoomOut);
         }
 
         /**
@@ -922,6 +1012,12 @@
             hideTextInfo();
             // Show the static 360 icon again
             static360Icon.style.opacity = '1';
+
+            // Reset zoom and pan when the popup is closed
+            zoomLevel = 1;
+            panX = 0;
+            panY = 0;
+            updateImageTransform();
         }
         
         /**
@@ -932,6 +1028,12 @@
             // Stop any previous animation
             stopImageAnimation();
 
+            // Reset zoom and pan when a new image is loaded
+            zoomLevel = 1;
+            panX = 0;
+            panY = 0;
+            updateImageTransform();
+            
             const option = popupOptions[index];
             // Construct the full image URL using the dynamic path variable
             popupImage.src = popupImagePath + option.imageUrl;
@@ -946,9 +1048,17 @@
                     hotspotElement.className = 'hotspot-2d';
                     hotspotElement.style.left = `${hotspotData.x}%`;
                     hotspotElement.style.top = `${hotspotData.y}%`;
-                    hotspotElement.textContent = hotspotData.label;
                     hotspotElement.title = hotspotData.label; // for hover tooltip
                     
+                    // Create and append the video element for the hotspot
+                    const hotspotVideo = document.createElement('video');
+                    hotspotVideo.src = 'res/ui/hotspot.webm';
+                    hotspotVideo.autoplay = true;
+                    hotspotVideo.loop = true;
+                    hotspotVideo.muted = true;
+                    hotspotVideo.playsInline = true;
+                    hotspotElement.appendChild(hotspotVideo);
+
                     hotspotElement.addEventListener('click', () => {
                         if (hotspotData.type === "image_sequence" && hotspotData.sequenceImages) {
                             startImageAnimation(hotspotData.sequenceImages);
@@ -1034,6 +1144,24 @@
         }
 
         /**
+         * Shows the next image in the options popup.
+         */
+        function showNextOption() {
+            if (isAnimating) return;
+            currentPopupOptionIndex = (currentPopupOptionIndex + 1) % popupOptions.length;
+            updatePopupImage(currentPopupOptionIndex);
+        }
+
+        /**
+         * Shows the previous image in the options popup.
+         */
+        function showPreviousOption() {
+            if (isAnimating) return;
+            currentPopupOptionIndex = (currentPopupOptionIndex - 1 + popupOptions.length) % popupOptions.length;
+            updatePopupImage(currentPopupOptionIndex);
+        }
+
+        /**
          * The main animation loop.
          */
         function animate() {
@@ -1051,15 +1179,53 @@
             // Show the instruction popup when the experience starts
             showInstructionPopup();
         }
+
+        /**
+         * Zooms in on the popup image.
+         */
+        function zoomIn() {
+            if (zoomLevel < maxZoom) {
+                zoomLevel += 0.5;
+                updateImageTransform();
+            }
+        }
+        
+        /**
+         * Zooms out on the popup image.
+         */
+        function zoomOut() {
+            if (zoomLevel > minZoom) {
+                zoomLevel -= 0.5;
+                updateImageTransform();
+            }
+        }
+
+        /**
+         * Updates the image's CSS transform property based on zoom and pan values.
+         */
+        function updateImageTransform() {
+            popupImage.style.transform = `scale(${zoomLevel}) translate(${panX}px, ${panY}px)`;
+
+            // Hide hotspots when zoomed in, show when zoomed out
+            if (zoomLevel > minZoom) {
+                hotspot2DContainer.style.display = 'none';
+            } else {
+                hotspot2DContainer.style.display = 'block';
+            }
+        }
         
         /**
          * Handles the mouse down event for dragging the popup image.
          */
         function onPopupMouseDown(event) {
+            // Prevent dragging if the user clicks on a hotspot
             if (event.target.classList.contains('hotspot-2d')) return;
 
             isPopupDragging = true;
             startPopupDragX = event.clientX;
+            startPopupDragY = event.clientY;
+            startPanX = panX; // Store current pan position
+            startPanY = panY;
             popupContent.classList.add('dragging');
         }
 
@@ -1067,31 +1233,46 @@
          * Handles the mouse up event for the popup image.
          */
         function onPopupMouseUp(event) {
+            if (!isPopupDragging) return;
+
+            const deltaX = event.clientX - startPopupDragX;
+            const deltaY = event.clientY - startPopupDragY;
+
+            // Only switch images if not zoomed in and the drag distance is sufficient
+            if (zoomLevel === 1 && Math.abs(deltaX) > dragThreshold) {
+                if (deltaX > 0) {
+                    currentPopupOptionIndex = (currentPopupOptionIndex - 1 + popupOptions.length) % popupOptions.length;
+                } else {
+                    currentPopupOptionIndex = (currentPopupOptionIndex + 1) % popupOptions.length;
+                }
+                updatePopupImage(currentPopupOptionIndex);
+            }
+
             isPopupDragging = false;
             popupContent.classList.remove('dragging');
         }
         
         /**
          * Handles the mouse move event for dragging the popup image.
-         * This function will only run if the mouse button is currently pressed,
-         * because the `isPopupDragging` flag is checked first.
          */
         function onPopupMouseMove(event) {
-            if (!isPopupDragging || isAnimating) return;
+            if (!isPopupDragging || isAnimating || zoomLevel === 1) return;
 
             const deltaX = event.clientX - startPopupDragX;
+            const deltaY = event.clientY - startPopupDragY;
+
+            // Panning logic, only if zoomed in
+            panX = startPanX + deltaX;
+            panY = startPanY + deltaY;
+
+            // Add boundary checks to prevent panning too far
+            const maxPanX = (popupImage.offsetWidth * (zoomLevel - 1)) / 2;
+            const maxPanY = (popupImage.offsetHeight * (zoomLevel - 1)) / 2;
+
+            panX = Math.max(-maxPanX, Math.min(maxPanX, panX));
+            panY = Math.max(-maxPanY, Math.min(maxPanY, panY));
             
-            if (Math.abs(deltaX) > dragThreshold) {
-                if (deltaX > 0) {
-                    // Dragged right, go to previous image
-                    currentPopupOptionIndex = (currentPopupOptionIndex - 1 + popupOptions.length) % popupOptions.length;
-                } else {
-                    // Dragged left, go to next image
-                    currentPopupOptionIndex = (currentPopupOptionIndex + 1) % popupOptions.length;
-                }
-                updatePopupImage(currentPopupOptionIndex);
-                startPopupDragX = event.clientX; // Reset the drag start point
-            }
+            updateImageTransform();
         }
         
         /**
@@ -1101,6 +1282,9 @@
             if (event.touches.length === 1 && !event.target.classList.contains('hotspot-2d')) {
                 isPopupDragging = true;
                 startPopupDragX = event.touches[0].clientX;
+                startPopupDragY = event.touches[0].clientY;
+                startPanX = panX;
+                startPanY = panY;
             }
         }
         
@@ -1108,6 +1292,20 @@
          * Handles the touch end event for the popup image.
          */
         function onPopupTouchEnd(event) {
+            if (!isPopupDragging) return;
+            const touch = event.changedTouches[0];
+            const deltaX = touch.clientX - startPopupDragX;
+            const deltaY = touch.clientY - startPopupDragY;
+
+            if (zoomLevel === 1 && Math.abs(deltaX) > dragThreshold) {
+                if (deltaX > 0) {
+                    currentPopupOptionIndex = (currentPopupOptionIndex - 1 + popupOptions.length) % popupOptions.length;
+                } else {
+                    currentPopupOptionIndex = (currentPopupOptionIndex + 1) % popupOptions.length;
+                }
+                updatePopupImage(currentPopupOptionIndex);
+            }
+
             isPopupDragging = false;
         }
 
@@ -1115,17 +1313,23 @@
          * Handles the touch move event for the popup image.
          */
         function onPopupTouchMove(event) {
-            if (!isPopupDragging || event.touches.length !== 1 || isAnimating) return;
+            if (!isPopupDragging || event.touches.length !== 1 || isAnimating || zoomLevel === 1) return;
+            
             const deltaX = event.touches[0].clientX - startPopupDragX;
-            if (Math.abs(deltaX) > dragThreshold) {
-                if (deltaX > 0) {
-                    currentPopupOptionIndex = (currentPopupOptionIndex - 1 + popupOptions.length) % popupOptions.length;
-                } else {
-                    currentPopupOptionIndex = (currentPopupOptionIndex + 1) % popupOptions.length;
-                }
-                updatePopupImage(currentPopupOptionIndex);
-                startPopupDragX = event.touches[0].clientX;
-            }
+            const deltaY = event.touches[0].clientY - startPopupDragY;
+
+            // Panning logic, only if zoomed in
+            panX = startPanX + deltaX;
+            panY = startPanY + deltaY;
+            
+            const maxPanX = (popupImage.offsetWidth * (zoomLevel - 1)) / 2;
+            const maxPanY = (popupImage.offsetHeight * (zoomLevel - 1)) / 2;
+            
+            panX = Math.max(-maxPanX, Math.min(maxPanX, panX));
+            panY = Math.max(-maxPanY, Math.min(maxPanY, panY));
+            
+            updateImageTransform();
+
             event.preventDefault(); // Prevent scrolling while dragging
         }
 
