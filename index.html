@@ -204,7 +204,7 @@
             transform: scale(1.1);
         }
 
-        /* New styles for the popup */
+        /* New styles for the options popup */
         #optionsPopup {
             position: fixed;
             top: 0;
@@ -217,7 +217,7 @@
             align-items: center;
             z-index: 150;
         }
-
+        
         #popupContent {
             position: relative;
             width: 100%;
@@ -226,6 +226,11 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            cursor: grab; /* Add grab cursor for dragging */
+        }
+        
+        #popupContent.dragging {
+            cursor: grabbing;
         }
 
         #popupImage {
@@ -235,43 +240,7 @@
             position: absolute;
             top: 0;
             left: 0;
-        }
-
-        .popup-arrow-btn {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            background-color: rgba(0, 0, 0, 0.5);
-            color: white;
-            border: none;
-            padding: 10px;
-            font-size: 2rem;
-            cursor: pointer;
-            z-index: 160;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            transition: background-color 0.3s ease;
-        }
-        
-        .popup-arrow-btn.disabled {
-            cursor: not-allowed;
-            opacity: 0.5;
-        }
-
-        .popup-arrow-btn:not(.disabled):hover {
-            background-color: rgba(0, 0, 0, 0.8);
-        }
-
-        #leftArrowBtn {
-            left: 20px;
-        }
-
-        #rightArrowBtn {
-            right: 20px;
+            user-select: none; /* Prevent image from being selected while dragging */
         }
 
         #closePopupBtn {
@@ -390,8 +359,6 @@
 <body>
     <!-- Landing Page -->
     <div id="landingPage">
-        <!-- <h1>360 Degree Virtual Experience</h1> -->
-        <!-- <p>Explore the scene by clicking and dragging.</p> -->
         <button id="startButton"></button>
     </div>
 
@@ -418,10 +385,7 @@
                 <button id="closeTextInfoBtn">X</button>
             </div>
             
-            <button id="leftArrowBtn" class="popup-arrow-btn">&lt;</button>
-            <button id="rightArrowBtn" class="popup-arrow-btn">&gt;</button>
             <button id="closePopupBtn"></button>
-
         </div>
     </div>
 
@@ -460,6 +424,11 @@
 
         // New video texture for 3D hotspots
         let hotspotVideoTexture = null;
+        
+        // New variables for popup image dragging
+        let isPopupDragging = false;
+        let startPopupDragX = 0;
+        const dragThreshold = 50; // pixels to trigger an image change
 
         // HTML elements
         const landingPage = document.getElementById('landingPage');
@@ -468,9 +437,8 @@
         const videoPlayer = document.getElementById('videoPlayer');
         const closeVideoBtn = document.getElementById('closeVideoBtn');
         const optionsPopup = document.getElementById('optionsPopup');
+        const popupContent = document.getElementById('popupContent');
         const popupImage = document.getElementById('popupImage');
-        const leftArrowBtn = document.getElementById('leftArrowBtn');
-        const rightArrowBtn = document.getElementById('rightArrowBtn');
         const closePopupBtn = document.getElementById('closePopupBtn');
         const hotspot2DContainer = document.getElementById('hotspot2DContainer');
         const textInfoBox = document.getElementById('textInfoBox');
@@ -484,7 +452,6 @@
         const panorama1ImageUrl = "res/nav/1.png";
         const panorama2ImageUrl = "res/nav/2.png";
         const panorama3ImageUrl = "res/nav/3.png";
-        //"res/nav/3.png";
 
         // New variable for the base path of the main popup images
         let popupImagePath = "res/3D/bonnet_close/";
@@ -495,16 +462,10 @@
         const popupOptions = [
             {
                 imageUrl: "1.png",
-                // hotspots2D: [
-                //     { x: 30, y: 50, label: "E", text: "Engine: A high-performance diesel engine for maximum power and efficiency." },
-                //     { x: 70, y: 30, label: "L", text: "Headlights: LED headlights for superior visibility during night operations." }
-                // ]
             },
             {
                 imageUrl: "2.png",
                 hotspots2D: [
-                    // { x: 45, y: 60, label: "T", text: "Tires: All-terrain tires designed for stability and traction on any surface." },
-                    // { x: 55, y: 25, label: "S", text: "Steering: Hydraulic power steering for effortless control." },
                     {
                       x: 60,
                       y: 60,
@@ -541,24 +502,12 @@
             },
             {
                 imageUrl: "3.png",
-                // hotspots2D: [
-                //     { x: 20, y: 40, label: "H", text: "Hood: Easy-open hood for quick access to service points." },
-                //     { x: 80, y: 65, label: "F", text: "Fenders: Durable fenders to protect the operator from mud and debris." }
-                // ]
             },
             {
                 imageUrl: "4.png",
-                // hotspots2D: [
-                //     { x: 20, y: 40, label: "H", text: "Hood: Easy-open hood for quick access to service points." },
-                //     { x: 80, y: 65, label: "F", text: "Fenders: Durable fenders to protect the operator from mud and debris." }
-                // ]
             },
             {
                 imageUrl: "5.png",
-                // hotspots2D: [
-                //     { x: 20, y: 40, label: "H", text: "Hood: Easy-open hood for quick access to service points." },
-                //     { x: 80, y: 65, label: "F", text: "Fenders: Durable fenders to protect the operator from mud and debris." }
-                // ]
             }
         ];
 
@@ -686,8 +635,14 @@
 
             // 9. Add event listeners for new popup
             closePopupBtn.addEventListener('click', hideOptionsPopup);
-            leftArrowBtn.addEventListener('click', showPreviousOption);
-            rightArrowBtn.addEventListener('click', showNextOption);
+            // New event listeners for popup drag functionality
+            popupContent.addEventListener('mousedown', onPopupMouseDown);
+            popupContent.addEventListener('mouseup', onPopupMouseUp);
+            popupContent.addEventListener('mousemove', onPopupMouseMove);
+            popupContent.addEventListener('mouseleave', onPopupMouseUp);
+            popupContent.addEventListener('touchstart', onPopupTouchStart);
+            popupContent.addEventListener('touchend', onPopupTouchEnd);
+            popupContent.addEventListener('touchmove', onPopupTouchMove);
 
             // 10. Add event listener for the new close text info button
             closeTextInfoBtn.addEventListener('click', hideTextInfo);
@@ -746,7 +701,6 @@
             let hotspotObject; // Can be a Mesh for arrows or a Sprite for video hotspots
             
             if (hotspotData.type === "arrow") {
-                // Fix: Increased the size of the arrow plane for better visibility
                 const hotspotGeometry = new THREE.PlaneGeometry(20, 10);
                 const arrowTexture = new THREE.TextureLoader().load("res/ui/nav_arrow.png");
                 const hotspotMaterial = new THREE.MeshBasicMaterial({
@@ -755,13 +709,10 @@
                     side: THREE.DoubleSide
                 });
                 hotspotObject = new THREE.Mesh(hotspotGeometry, hotspotMaterial);
-                // Fix: Correctly apply the rotation from the data configuration
                 if (hotspotData.rotation) {
-                    // hotspotMesh.rotation.copy(hotspotData.rotation);
                     hotspotObject.rotation.x = 3.14/2;
                 }
             } else {
-                // For 'popup' or 'video' hotspots, use the looping video as a sprite that always faces the camera
                 const spriteMaterial = new THREE.SpriteMaterial({ 
                     map: hotspotVideoTexture,
                     transparent: true,
@@ -905,8 +856,6 @@
          * Shows the video overlay and plays the specified video.
          */
         function showVideo(videoUrl) {
-            // The user's original code had a YouTube URL with parameters.
-            // Let's ensure the URL is correct for embedding.
             let embedUrl = videoUrl;
             if (videoUrl.includes('youtu.be') || videoUrl.includes('youtube.com')) {
                 const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:m\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([\w-]{11})(?:\S+)?/i;
@@ -974,25 +923,7 @@
             // Show the static 360 icon again
             static360Icon.style.opacity = '1';
         }
-
-        /**
-         * Disables or enables the main navigation arrows.
-         * @param {boolean} disable - True to disable, false to enable.
-         */
-        function toggleNavigationArrows(disable) {
-            if (disable) {
-                leftArrowBtn.classList.add('disabled');
-                rightArrowBtn.classList.add('disabled');
-                leftArrowBtn.disabled = true;
-                rightArrowBtn.disabled = true;
-            } else {
-                leftArrowBtn.classList.remove('disabled');
-                rightArrowBtn.classList.remove('disabled');
-                leftArrowBtn.disabled = false;
-                rightArrowBtn.disabled = false;
-            }
-        }
-
+        
         /**
          * Updates the image and hotspot links inside the options popup.
          * @param {number} index - The index of the option to display.
@@ -1042,26 +973,6 @@
         }
 
         /**
-         * Shows the next option in the popup, with wrap-around.
-         */
-        function showNextOption() {
-            // Prevent navigation while an animation is playing
-            if (isAnimating) return;
-            currentPopupOptionIndex = (currentPopupOptionIndex + 1) % popupOptions.length;
-            updatePopupImage(currentPopupOptionIndex);
-        }
-
-        /**
-         * Shows the previous option in the popup, with wrap-around.
-         */
-        function showPreviousOption() {
-            // Prevent navigation while an animation is playing
-            if (isAnimating) return;
-            currentPopupOptionIndex = (currentPopupOptionIndex - 1 + popupOptions.length) % popupOptions.length;
-            updatePopupImage(currentPopupOptionIndex);
-        }
-
-        /**
          * Shows the text info box with a given text.
          * @param {string} text - The text to display in the info box.
          */
@@ -1087,8 +998,7 @@
             stopImageAnimation();
             
             isAnimating = true;
-            toggleNavigationArrows(true); // Disable arrows during animation
-
+            
             animationImages = images;
             animationImageIndex = 0;
             const animationDuration = 500; // 2 seconds
@@ -1121,7 +1031,6 @@
                 animationInterval = null;
             }
             isAnimating = false;
-            toggleNavigationArrows(false); // Re-enable arrows after animation
         }
 
         /**
@@ -1141,6 +1050,83 @@
             animate();
             // Show the instruction popup when the experience starts
             showInstructionPopup();
+        }
+        
+        /**
+         * Handles the mouse down event for dragging the popup image.
+         */
+        function onPopupMouseDown(event) {
+            if (event.target.classList.contains('hotspot-2d')) return;
+
+            isPopupDragging = true;
+            startPopupDragX = event.clientX;
+            popupContent.classList.add('dragging');
+        }
+
+        /**
+         * Handles the mouse up event for the popup image.
+         */
+        function onPopupMouseUp(event) {
+            isPopupDragging = false;
+            popupContent.classList.remove('dragging');
+        }
+        
+        /**
+         * Handles the mouse move event for dragging the popup image.
+         * This function will only run if the mouse button is currently pressed,
+         * because the `isPopupDragging` flag is checked first.
+         */
+        function onPopupMouseMove(event) {
+            if (!isPopupDragging || isAnimating) return;
+
+            const deltaX = event.clientX - startPopupDragX;
+            
+            if (Math.abs(deltaX) > dragThreshold) {
+                if (deltaX > 0) {
+                    // Dragged right, go to previous image
+                    currentPopupOptionIndex = (currentPopupOptionIndex - 1 + popupOptions.length) % popupOptions.length;
+                } else {
+                    // Dragged left, go to next image
+                    currentPopupOptionIndex = (currentPopupOptionIndex + 1) % popupOptions.length;
+                }
+                updatePopupImage(currentPopupOptionIndex);
+                startPopupDragX = event.clientX; // Reset the drag start point
+            }
+        }
+        
+        /**
+         * Handles the touch start event for the popup image.
+         */
+        function onPopupTouchStart(event) {
+            if (event.touches.length === 1 && !event.target.classList.contains('hotspot-2d')) {
+                isPopupDragging = true;
+                startPopupDragX = event.touches[0].clientX;
+            }
+        }
+        
+        /**
+         * Handles the touch end event for the popup image.
+         */
+        function onPopupTouchEnd(event) {
+            isPopupDragging = false;
+        }
+
+        /**
+         * Handles the touch move event for the popup image.
+         */
+        function onPopupTouchMove(event) {
+            if (!isPopupDragging || event.touches.length !== 1 || isAnimating) return;
+            const deltaX = event.touches[0].clientX - startPopupDragX;
+            if (Math.abs(deltaX) > dragThreshold) {
+                if (deltaX > 0) {
+                    currentPopupOptionIndex = (currentPopupOptionIndex - 1 + popupOptions.length) % popupOptions.length;
+                } else {
+                    currentPopupOptionIndex = (currentPopupOptionIndex + 1) % popupOptions.length;
+                }
+                updatePopupImage(currentPopupOptionIndex);
+                startPopupDragX = event.touches[0].clientX;
+            }
+            event.preventDefault(); // Prevent scrolling while dragging
         }
 
         // Add the event listener to the start button
