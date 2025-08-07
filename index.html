@@ -414,32 +414,70 @@
             transform: scale(1.1);
         }
 
+        /* Styles for the new vertical toolbar */
+        #verticalToolbar {
+            position: fixed;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            gap: 15px;
+            z-index: 105; /* Above canvas, below popups */
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .toolbar-btn {
+            background-color: rgba(0, 0, 0, 0.6);
+            border: 2px solid white;
+            color: white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        .toolbar-btn:hover {
+            background-color: rgba(0, 0, 0, 0.8);
+            transform: scale(1.1);
+        }
+
+
     </style>
 </head>
 <body>
-    <!-- Landing Page -->
     <div id="landingPage">
         <button id="startButton"></button>
     </div>
 
-    <!-- Canvas will be appended here by Three.js -->
-
-    <!-- Instruction Popup -->
     <div id="instructionPopupOverlay">
         <div id="instructionPopupContent">
             <button id="closeInstructionBtn">X</button>
         </div>
     </div>
+    
+    <div id="verticalToolbar">
+        <button id="fullscreenBtn" class="toolbar-btn">Full</button>
+        <button id="zoomIn360Btn" class="toolbar-btn">+</button>
+        <button id="zoomOut360Btn" class="toolbar-btn">-</button>
+        <button id="soundBtn" class="toolbar-btn">Sound</button>
+    </div>
 
-    <!-- New Popup for options -->
+
     <div id="optionsPopup">
         <div id="popupContent">
             <img id="popupImage" src="" alt="Popup Image">
             
-            <!-- Container for 2D hotspots -->
             <div id="hotspot2DContainer"></div>
 
-            <!-- Text info box -->
             <div id="textInfoBox">
                 <p id="textInfoContent"></p>
                 <button id="closeTextInfoBtn">X</button>
@@ -450,7 +488,6 @@
             
             <button id="closePopupBtn"></button>
 
-            <!-- New controls container for zoom buttons -->
             <div id="popupControls">
                 <button id="zoomOutBtn" class="zoom-btn">-</button>
                 <button id="zoomInBtn" class="zoom-btn">+</button>
@@ -458,7 +495,6 @@
         </div>
     </div>
 
-    <!-- Video Overlay -->
     <div id="videoOverlay">
         <div id="videoContainer">
             <iframe id="videoPlayer" width="100%" height="100%" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
@@ -466,12 +502,10 @@
         </div>
     </div>
     
-    <!-- Static 360 Icon -->
     <div id="static360Icon">
         <video src="res/ui/360.webm" autoplay loop muted playsinline></video>
     </div>
 
-    <!-- Three.js library CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
@@ -509,6 +543,9 @@
         let startPanX = 0;
         let startPanY = 0;
 
+        // New variable for sound state
+        let isSoundOn = false;
+
         // HTML elements
         const landingPage = document.getElementById('landingPage');
         const startButton = document.getElementById('startButton');
@@ -530,6 +567,13 @@
         const static360Icon = document.getElementById('static360Icon');
         const zoomInBtn = document.getElementById('zoomInBtn');
         const zoomOutBtn = document.getElementById('zoomOutBtn');
+        
+        // New Toolbar Elements
+        const verticalToolbar = document.getElementById('verticalToolbar');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const zoomIn360Btn = document.getElementById('zoomIn360Btn');
+        const zoomOut360Btn = document.getElementById('zoomOut360Btn');
+        const soundBtn = document.getElementById('soundBtn');
 
 
         // Direct URLs for panoramic images and assets
@@ -665,7 +709,7 @@
             const hotspotVideo = document.createElement('video');
             hotspotVideo.src = 'res/ui/hotspot.webm'; // The video for the hotspot
             hotspotVideo.loop = true;
-            hotspotVideo.muted = true;
+            hotspotVideo.muted = !isSoundOn;
             hotspotVideo.playsInline = true;
             hotspotVideo.play(); // Start playing the video
 
@@ -739,6 +783,13 @@
             // 12. Add event listeners for zoom buttons
             zoomInBtn.addEventListener('click', zoomIn);
             zoomOutBtn.addEventListener('click', zoomOut);
+            
+            // 13. Add event listeners for new vertical toolbar
+            fullscreenBtn.addEventListener('click', toggleFullScreen);
+            zoomIn360Btn.addEventListener('click', zoomIn360);
+            zoomOut360Btn.addEventListener('click', zoomOut360);
+            soundBtn.addEventListener('click', toggleSound);
+            updateSoundButton(); // Set initial text
         }
 
         /**
@@ -960,8 +1011,9 @@
             }
             videoPlayer.src = embedUrl;
             videoOverlay.style.display = 'flex';
-            // Hide the static 360 icon when video is playing
+            // Hide the static 360 icon and toolbar when video is playing
             static360Icon.style.opacity = '0';
+            verticalToolbar.style.display = 'none';
         }
 
         /**
@@ -970,8 +1022,9 @@
         function hideVideo() {
             videoPlayer.src = '';
             videoOverlay.style.display = 'none';
-            // Show the static 360 icon again
+            // Show the static 360 icon and toolbar again
             static360Icon.style.opacity = '1';
+            verticalToolbar.style.display = 'flex';
         }
 
         /**
@@ -986,8 +1039,9 @@
          */
         function hideInstructionPopup() {
             instructionPopupOverlay.style.display = 'none';
-            // Show the static 360 icon for the first time
+            // Show the static 360 icon and toolbar for the first time
             static360Icon.style.opacity = '1';
+            verticalToolbar.style.display = 'flex';
         }
 
         /**
@@ -997,8 +1051,9 @@
             optionsPopup.style.display = 'flex';
             currentPopupOptionIndex = 0;
             updatePopupImage(currentPopupOptionIndex);
-            // Hide the static 360 icon when the popup is open
+            // Hide the static 360 icon and toolbar when the popup is open
             static360Icon.style.opacity = '0';
+            verticalToolbar.style.display = 'none';
         }
 
         /**
@@ -1010,8 +1065,9 @@
             optionsPopup.style.display = 'none';
             // Hide the text box when the main popup is closed
             hideTextInfo();
-            // Show the static 360 icon again
+            // Show the static 360 icon and toolbar again
             static360Icon.style.opacity = '1';
+            verticalToolbar.style.display = 'flex';
 
             // Reset zoom and pan when the popup is closed
             zoomLevel = 1;
@@ -1055,7 +1111,7 @@
                     hotspotVideo.src = 'res/ui/hotspot.webm';
                     hotspotVideo.autoplay = true;
                     hotspotVideo.loop = true;
-                    hotspotVideo.muted = true;
+                    hotspotVideo.muted = !isSoundOn;
                     hotspotVideo.playsInline = true;
                     hotspotElement.appendChild(hotspotVideo);
 
@@ -1332,6 +1388,57 @@
 
             event.preventDefault(); // Prevent scrolling while dragging
         }
+
+        /**
+         * NEW: Toggles fullscreen mode for the entire page.
+         */
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        /**
+         * NEW: Zooms into the 360-degree scene.
+         */
+        function zoomIn360() {
+            camera.fov = Math.max(10, camera.fov - 5); // Decrease FOV to zoom in
+            camera.updateProjectionMatrix();
+        }
+
+        /**
+         * NEW: Zooms out of the 360-degree scene.
+         */
+        function zoomOut360() {
+            camera.fov = Math.min(60, camera.fov + 5); // Increase FOV to zoom out
+            camera.updateProjectionMatrix();
+        }
+
+        /**
+         * NEW: Toggles sound for all video elements.
+         */
+        function toggleSound() {
+            isSoundOn = !isSoundOn;
+            // Mute/unmute all video elements on the page
+            document.querySelectorAll('video').forEach(video => {
+                video.muted = !isSoundOn;
+            });
+            updateSoundButton();
+        }
+        
+        /**
+         * NEW: Updates the sound button text.
+         */
+        function updateSoundButton() {
+            soundBtn.textContent = isSoundOn ? 'Mute' : 'Sound';
+        }
+
 
         // Add the event listener to the start button
         startButton.addEventListener('click', startExperience);
