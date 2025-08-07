@@ -339,10 +339,23 @@
             box-shadow: 0 0 15px rgba(255, 255, 255, 0.3); /* Optional: add a subtle glow */
         }
 
-        #static360Icon video {
+        #static360Icon video, #popup360Icon video {
             width: 100%;
             height: 100%;
             object-fit: cover; /* Ensures the video fills the container */
+        }
+
+        /* New styles for the 360 icon inside the popup */
+        #popup360Icon {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            width: 80px;
+            height: 80px;
+            z-index: 165; /* Above arrows/zoom, below text info box */
+            border-radius: 50%;
+            overflow: hidden;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
         }
 
         /* Styles for the text info box */
@@ -500,6 +513,11 @@
             <div id="popupControls">
                 <button id="zoomOutBtn" class="zoom-btn">-</button>
                 <button id="zoomInBtn" class="zoom-btn">+</button>
+            </div>
+
+            <!-- New 360 Icon for the popup -->
+            <div id="popup360Icon">
+                <video src="res/ui/360.webm" autoplay loop muted playsinline></video>
             </div>
         </div>
     </div>
