@@ -381,27 +381,6 @@
             padding: 10px 20px;
             border-radius: 25px;
         }
-
-        .zoom-btn {
-            background-color: rgba(0, 0, 0, 0.6);
-            border: 2px solid white;
-            color: white;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            font-size: 24px;
-            font-weight: bold;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            transition: background-color 0.3s ease, transform 0.2s ease;
-        }
-
-        .zoom-btn:hover {
-            background-color: rgba(0, 0, 0, 0.8);
-            transform: scale(1.1);
-        }
         
         /* New styles for the option slider */
         .option-slider {
@@ -523,9 +502,7 @@
             <button id="closePopupBtn"></button>
 
             <div id="popupControls">
-                <button id="zoomOutBtn" class="zoom-btn">-</button>
                 <input type="range" id="optionSlider" class="option-slider" value="0" min="0">
-                <button id="zoomInBtn" class="zoom-btn">+</button>
             </div>
 
             <!-- New 360 Icon for the popup -->
@@ -603,8 +580,6 @@
         const instructionPopupOverlay = document.getElementById('instructionPopupOverlay');
         const closeInstructionBtn = document.getElementById('closeInstructionBtn');
         const static360Icon = document.getElementById('static360Icon');
-        const zoomInBtn = document.getElementById('zoomInBtn');
-        const zoomOutBtn = document.getElementById('zoomOutBtn');
         const optionSlider = document.getElementById('optionSlider');
         
         // New Toolbar Elements
@@ -818,12 +793,8 @@
 
             // 11. Add event listener for instruction popup close button
             closeInstructionBtn.addEventListener('click', hideInstructionPopup);
-
-            // 12. Add event listeners for zoom buttons
-            zoomInBtn.addEventListener('click', zoomIn);
-            zoomOutBtn.addEventListener('click', zoomOut);
             
-            // 13. Add event listeners for new vertical toolbar
+            // 12. Add event listeners for new vertical toolbar
             fullscreenBtn.addEventListener('click', toggleFullScreen);
             zoomIn360Btn.addEventListener('click', zoomIn360);
             zoomOut360Btn.addEventListener('click', zoomOut360);
@@ -1095,9 +1066,8 @@
             optionSlider.value = currentPopupOptionIndex;
 
             updatePopupImage(currentPopupOptionIndex);
-            // Hide the static 360 icon and toolbar when the popup is open
+            // Hide the static 360 icon when the popup is open
             static360Icon.style.opacity = '0';
-            // verticalToolbar.style.display = 'none'; // Keep toolbar visible when options popup is active
         }
 
         /**
@@ -1446,19 +1416,27 @@
         }
 
         /**
-         * NEW: Zooms into the 360-degree scene.
+         * NEW: Zooms into the 360-degree scene or the options popup.
          */
         function zoomIn360() {
-            camera.fov = Math.max(10, camera.fov - 5); // Decrease FOV to zoom in
-            camera.updateProjectionMatrix();
+            if (optionsPopup.style.display === 'flex') {
+                zoomIn();
+            } else {
+                camera.fov = Math.max(10, camera.fov - 5); // Decrease FOV to zoom in
+                camera.updateProjectionMatrix();
+            }
         }
 
         /**
-         * NEW: Zooms out of the 360-degree scene.
+         * NEW: Zooms out of the 360-degree scene or the options popup.
          */
         function zoomOut360() {
-            camera.fov = Math.min(60, camera.fov + 5); // Increase FOV to zoom out
-            camera.updateProjectionMatrix();
+            if (optionsPopup.style.display === 'flex') {
+                zoomOut();
+            } else {
+                camera.fov = Math.min(60, camera.fov + 5); // Increase FOV to zoom out
+                camera.updateProjectionMatrix();
+            }
         }
 
         /**
