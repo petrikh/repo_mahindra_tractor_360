@@ -431,12 +431,12 @@
         #verticalToolbar {
             position: fixed;
             top: 50%;
-            right: 20px;
+            right: 90px; /* Moved to avoid overlapping popup controls */
             transform: translateY(-50%);
             display: none; /* Hidden by default */
             flex-direction: column;
             gap: 10px; /* Adjusted spacing for smaller buttons */
-            z-index: 105; /* Above canvas, below popups */
+            z-index: 171; /* Set to be on top of the options popup */
             background-color: white; /* Set background to white */
             padding: 15px; /* Added more padding */
             border-radius: 10px;
@@ -1080,7 +1080,7 @@
             updatePopupImage(currentPopupOptionIndex);
             // Hide the static 360 icon and toolbar when the popup is open
             static360Icon.style.opacity = '0';
-            verticalToolbar.style.display = 'none';
+            // verticalToolbar.style.display = 'none'; // Keep toolbar visible when options popup is active
         }
 
         /**
