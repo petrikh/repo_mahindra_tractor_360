@@ -468,6 +468,9 @@
         let animationImageIndex = 0;
         let animationImages = [];
 
+        // New video texture for 3D hotspots
+        let hotspotVideoTexture = null;
+
         // HTML elements
         const landingPage = document.getElementById('landingPage');
         const startButton = document.getElementById('startButton');
@@ -635,6 +638,17 @@
          * Sets up the scene, camera, renderer, and loads the initial panoramic image onto a sphere.
          */
         function init() {
+            // Create a video element in memory to be used as a texture for hotspots
+            const hotspotVideo = document.createElement('video');
+            hotspotVideo.src = 'res/ui/hotspot.webm'; // The video for the hotspot
+            hotspotVideo.loop = true;
+            hotspotVideo.muted = true;
+            hotspotVideo.playsInline = true;
+            hotspotVideo.play(); // Start playing the video
+
+            // Create a texture from the video
+            hotspotVideoTexture = new THREE.VideoTexture(hotspotVideo);
+
             // 1. Scene setup
             scene = new THREE.Scene();
 
@@ -739,49 +753,43 @@
          * @param {object} hotspotData - An object containing hotspot details.
          */
         function createHotspot(hotspotData) {
-            let hotspotMesh;
-            let hotspotMaterial;
-            let hotspotGeometry;
+            let hotspotObject; // Can be a Mesh for arrows or a Sprite for video hotspots
             
             if (hotspotData.type === "arrow") {
                 // Fix: Increased the size of the arrow plane for better visibility
-                hotspotGeometry = new THREE.PlaneGeometry(20, 10);
-
-                // Use an inline SVG for the arrow texture for reliability
-               
+                const hotspotGeometry = new THREE.PlaneGeometry(20, 10);
                 const arrowTexture = new THREE.TextureLoader().load("res/ui/nav_arrow.png");
-
-                hotspotMaterial = new THREE.MeshBasicMaterial({
+                const hotspotMaterial = new THREE.MeshBasicMaterial({
                     map: arrowTexture,
                     transparent: true,
                     side: THREE.DoubleSide
                 });
-                
+                hotspotObject = new THREE.Mesh(hotspotGeometry, hotspotMaterial);
+                // Fix: Correctly apply the rotation from the data configuration
+                if (hotspotData.rotation) {
+                    // hotspotMesh.rotation.copy(hotspotData.rotation);
+                    hotspotObject.rotation.x = 3.14/2;
+                }
             } else {
-                // Default to a spherical hotspot for other types (like video or popup)
-                hotspotGeometry = new THREE.SphereGeometry(3, 32, 32);
-                hotspotMaterial = new THREE.MeshBasicMaterial({
-                    color: 0xffa500,
+                // For 'popup' or 'video' hotspots, use the looping video as a sprite that always faces the camera
+                const spriteMaterial = new THREE.SpriteMaterial({ 
+                    map: hotspotVideoTexture,
                     transparent: true,
-                    opacity: 0.8
+                    blending: THREE.AdditiveBlending, // Makes black areas of the video transparent
+                    depthWrite: false // Important for transparent objects to render correctly
                 });
-            }
-            
-            hotspotMesh = new THREE.Mesh(hotspotGeometry, hotspotMaterial);
-
-            // Apply position and rotation
-            hotspotMesh.position.copy(hotspotData.position);
-            // Fix: Correctly apply the rotation from the data configuration
-            if (hotspotData.rotation) {
-                // hotspotMesh.rotation.copy(hotspotData.rotation);
-                hotspotMesh.rotation.x = 3.14/2;
+                hotspotObject = new THREE.Sprite(spriteMaterial);
+                hotspotObject.scale.set(5, 5, 1); // Adjust size of the sprite
             }
 
-            // Store hotspot data directly on the mesh for easy access during raycasting
-            hotspotMesh.userData = hotspotData;
+            // Apply position
+            hotspotObject.position.copy(hotspotData.position);
 
-            scene.add(hotspotMesh);
-            hotspotMeshes.push(hotspotMesh);
+            // Store hotspot data directly on the object for easy access during raycasting
+            hotspotObject.userData = hotspotData;
+
+            scene.add(hotspotObject);
+            hotspotMeshes.push(hotspotObject);
         }
 
         /**
