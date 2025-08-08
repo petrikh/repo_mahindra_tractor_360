@@ -314,7 +314,10 @@
             color: white;
             padding: 25px; /* Adjust padding for the smaller size */
             z-index: 170;
-            display: none; /* Hidden by default */
+            display: none; /* Hidden by default, will be set to 'flex' by JS */
+            justify-content: center; /* Horizontally center content */
+            align-items: center; /* Vertically center content */
+            text-align: center; /* Center the text itself */
             animation: fadeIn 0.5s ease-in-out;
             box-sizing: border-box; /* Ensures padding is included in the element's total width/height */
             overflow-y: auto; /* Add a scrollbar if the text content is too long */
@@ -593,7 +596,7 @@
                 imageUrl: "2.png",
                 hotspots2D: [
                     {
-                      x: 53,
+                      x: 60,
                       y: 41,
                       label: "A", // Hotspot for the image sequence
                       type: "image_sequence_with_path_change",
@@ -1295,7 +1298,7 @@
             }
 
             textInfoContent.textContent = text;
-            textInfoBox.style.display = 'block';
+            textInfoBox.style.display = 'flex';
 
             // Set a timer to hide the box after 2 seconds (2000 milliseconds)
             textInfoTimer = setTimeout(hideTextInfo, 2000);
