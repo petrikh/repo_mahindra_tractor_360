@@ -224,14 +224,12 @@
         }
 
         #popupImage {
-            width: 100%;
-            height: 100%;
-            object-fit: contain; /* Ensures the image fits without being cropped */
-            position: absolute;
-            top: 0;
-            left: 0;
+            width: 100%; /* Cover the full width */
+            height: auto; /* Adjust height to maintain aspect ratio */
+            object-fit: contain; /* Ensures it fits within the bounds while maintaining aspect ratio */
             user-select: none; /* Prevent image from being selected while dragging */
             transition: transform 0.3s ease; /* Smooth zoom transition */
+            /* Removed position: absolute to allow flexbox centering */
         }
 
         #closePopupBtn {
@@ -569,23 +567,6 @@
                 imageUrl: "1.png",
                 hotspots2D: [
                     {
-                      x: 53,
-                      y: 41,
-                      label: "A", // Hotspot for the image sequence
-                      type: "image_sequence_with_path_change",
-                      next_path: "res/3D/bonnet_open_360/",
-                      soundUrl: "res/ui/bonnet_clip.mp3",
-                      sequenceImages: [
-                          "res/3D/bonnet_open/1.png",
-                          "res/3D/bonnet_open/2.png",
-                          "res/3D/bonnet_open/3.png",
-                          "res/3D/bonnet_open/4.png",
-                          "res/3D/bonnet_open/5.png",
-                          "res/3D/bonnet_open/6.png",
-                          "res/3D/bonnet_open/7.png"
-                      ]
-                    },
-                    {
                       x: 40,
                       y: 81,
                       label: "A", // Hotspot for the image sequence
@@ -611,6 +592,23 @@
             {
                 imageUrl: "2.png",
                 hotspots2D: [
+                    {
+                      x: 53,
+                      y: 41,
+                      label: "A", // Hotspot for the image sequence
+                      type: "image_sequence_with_path_change",
+                      next_path: "res/3D/bonnet_open_360/",
+                      soundUrl: "res/ui/bonnet_clip.mp3",
+                      sequenceImages: [
+                          "res/3D/bonnet_open/1.png",
+                          "res/3D/bonnet_open/2.png",
+                          "res/3D/bonnet_open/3.png",
+                          "res/3D/bonnet_open/4.png",
+                          "res/3D/bonnet_open/5.png",
+                          "res/3D/bonnet_open/6.png",
+                          "res/3D/bonnet_open/7.png"
+                      ]
+                    },
                     // {
                     //   x: 60,
                     //   y: 30,
