@@ -605,6 +605,7 @@
                       label: "A", // Hotspot for the image sequence
                       type: "image_sequence_with_path_change",
                       next_path: "res/3D/bonnet_open_360/",
+                      soundUrl: "res/ui/bonnet_clip.mp3",
                       sequenceImages: [
                           "res/3D/bonnet_open/1.png",
                           "res/3D/bonnet_open/2.png",
@@ -1176,6 +1177,16 @@
         }
         
         /**
+         * Plays a sound file if sound is enabled.
+         * @param {string} url - The URL of the sound file to play.
+         */
+        function playSound(url) {
+            if (!isSoundOn || !url) return;
+            const audio = new Audio(url);
+            audio.play().catch(e => console.error("Error playing sound:", e));
+        }
+
+        /**
          * Updates the image and hotspot links inside the options popup.
          * @param {number} index - The index of the option to display.
          */
@@ -1215,6 +1226,11 @@
                     hotspotElement.appendChild(hotspotVideo);
 
                     hotspotElement.addEventListener('click', () => {
+                        // Play sound if one is associated with this hotspot
+                        if (hotspotData.soundUrl) {
+                            playSound(hotspotData.soundUrl);
+                        }
+
                         if (hotspotData.type === "image_sequence" && hotspotData.sequenceImages) {
                             startImageAnimation(hotspotData.sequenceImages);
                         } else if (hotspotData.type === "image_sequence_with_path_change" && hotspotData.sequenceImages) {
