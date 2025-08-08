@@ -753,9 +753,9 @@
                 hotspots: [
                     {
                         id: "popupHotspot3D",
-                        position: new THREE.Vector3(80, -15,0),
+                        position: new THREE.Vector3(80, -20,0),
                         type: "popup", // New type to trigger the popup
-                        label: "Show Options"
+                        label: "Explors Tractor"
                     },
                     {
                         id: "backPanoArrow",
@@ -908,6 +908,30 @@
         }
 
         /**
+         * Creates a canvas element with text drawn on it.
+         * @param {string} text - The text to draw.
+         * @param {object} opts - Options for styling.
+         * @returns {HTMLCanvasElement}
+         */
+        function createTextCanvas(text, opts) {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            const font = `${opts.fontSize || 24}px ${opts.fontFace || 'Arial'}`;
+            context.font = font;
+            
+            const metrics = context.measureText(text);
+            const textWidth = metrics.width;
+            
+            canvas.width = textWidth;
+            canvas.height = opts.fontSize || 24;
+            
+            context.font = font; // Re-apply font after resize
+            context.fillStyle = opts.color || 'black';
+            context.fillText(text, 0, (opts.fontSize || 24) * 0.85); // Adjust vertical alignment
+            return canvas;
+        }
+
+        /**
          * Creates a 3D hotspot mesh and adds it to the scene.
          * @param {object} hotspotData - An object containing hotspot details.
          */
@@ -937,14 +961,34 @@
                 hotspotObject.scale.set(5, 5, 1); // Adjust size of the sprite
             }
 
-            // Apply position
-            hotspotObject.position.copy(hotspotData.position);
+            // If the hotspot has a label (and is not an arrow), create a text sprite and group them
+            if (hotspotData.label && hotspotData.type !== 'arrow') {
+                const textCanvas = createTextCanvas(hotspotData.label, { color: 'black', fontSize: 32 });
+                const textTexture = new THREE.CanvasTexture(textCanvas);
+                const textMaterial = new THREE.SpriteMaterial({ map: textTexture, transparent: true });
+                const textSprite = new THREE.Sprite(textMaterial);
 
-            // Store hotspot data directly on the object for easy access during raycasting
-            hotspotObject.userData = hotspotData;
+                // Scale the text sprite based on its canvas dimensions
+                const scaleFactor = 10;
+                textSprite.scale.set(textCanvas.width / scaleFactor, textCanvas.height / scaleFactor, 1);
 
-            scene.add(hotspotObject);
-            hotspotMeshes.push(hotspotObject);
+                // Position the text sprite below the main hotspot icon
+                textSprite.position.y = -5; // Adjust this value as needed
+
+                // Group the icon and the text
+                const group = new THREE.Group();
+                group.add(hotspotObject);
+                group.add(textSprite);
+                group.position.copy(hotspotData.position);
+                group.userData = hotspotData; // Carry data on the group
+                scene.add(group);
+                hotspotMeshes.push(group);
+            } else {
+                hotspotObject.position.copy(hotspotData.position);
+                hotspotObject.userData = hotspotData;
+                scene.add(hotspotObject);
+                hotspotMeshes.push(hotspotObject);
+            }
         }
 
         /**
@@ -989,9 +1033,15 @@
             mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
             mouse.y = - (event.clientY / renderer.domElement.clientHeight) * 2 + 1;
             raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(hotspotMeshes);
+            const intersects = raycaster.intersectObjects(hotspotMeshes, true); // Recursive check
             if (intersects.length > 0) {
-                const clickedHotspot = intersects[0].object;
+                let clickedHotspot = intersects[0].object;
+
+                // Traverse up the hierarchy to find the parent group that is in hotspotMeshes
+                while (clickedHotspot.parent && hotspotMeshes.indexOf(clickedHotspot) === -1) {
+                    clickedHotspot = clickedHotspot.parent;
+                }
+
                 const hotspotData = clickedHotspot.userData;
 
                 if (hotspotData && hotspotData.type === "arrow" && hotspotData.targetPanoIndex !== undefined) {
