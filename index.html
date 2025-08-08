@@ -184,23 +184,17 @@
         #closeInstructionBtn {
             position: absolute;
             top: 10px; /* Position inside the top edge */
-            right: 10px; /* Position inside the right edge */
-            background-color: #f44336;
-            color: white;
-            border: 2px solid white;
-            border-radius: 50%;
+            right: 0px; /* Position inside the right edge */
+            background: url('res/ui/close.png') no-repeat center center;
+            background-size: contain;
+            border: none;
             width: 40px;
             height: 40px;
-            font-size: 24px;
             cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             z-index: 260;
-            transition: background-color 0.3s ease, transform 0.2s ease;
+            transition: transform 0.2s ease;
         }
         #closeInstructionBtn:hover {
-            background-color: #d32f2f;
             transform: scale(1.1);
         }
 
@@ -476,7 +470,7 @@
 
     <div id="instructionPopupOverlay">
         <div id="instructionPopupContent">
-            <button id="closeInstructionBtn">X</button>
+            <button id="closeInstructionBtn"></button>
         </div>
     </div>
     
