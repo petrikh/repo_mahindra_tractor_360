@@ -1170,7 +1170,10 @@
          */
         function showOptionsPopup() {
             optionsPopup.style.display = 'flex';
-            currentPopupOptionIndex = 0;
+            
+            // Reset state every time the popup is opened
+            popupImagePath = "res/3D/bonnet_close/"; // Reset to default path
+            currentPopupOptionIndex = 0; // Reset to the first image
             
             // Configure the slider
             optionSlider.max = popupOptions.length - 1;
