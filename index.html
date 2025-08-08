@@ -172,7 +172,7 @@
             position: relative;
             width: 80vw; /* Use up to 80% of the viewport width */
             max-width: 600px; /* But no more than 600px */
-            aspect-ratio: 2 / 1; /* Maintain a 2:1 aspect ratio, matching the image */
+            aspect-ratio: 1895 / 884; /* Maintain a 2:1 aspect ratio, matching the image */
             background: url('res/ui/instructions.png') no-repeat center center;
             background-size: cover; /* The image will cover the entire area without distortion */
         }
@@ -307,40 +307,30 @@
         /* Styles for the text info box */
         #textInfoBox {
             position: absolute;
-            bottom: 10%;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 80%;
-            max-width: 400px;
-            background-color: rgba(0, 0, 0, 0.8);
+            top: 20px;
+            left: 20px;
+            width: 240px; /* A smaller width for the info box */
+            aspect-ratio: 1895 / 884; /* IMPORTANT: Adjust this to match your info_box.png aspect ratio */
+            background: url('res/ui/info_box.png') no-repeat center center;
+            background-size: cover; /* Use 'cover' to fill the area without distorting the image */
             color: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+            padding: 25px; /* Adjust padding for the smaller size */
             z-index: 170;
             display: none; /* Hidden by default */
             animation: fadeIn 0.5s ease-in-out;
+            box-sizing: border-box; /* Ensures padding is included in the element's total width/height */
+            overflow-y: auto; /* Add a scrollbar if the text content is too long */
         }
 
         #textInfoBox p {
             margin: 0;
             font-size: 1rem;
-            line-height: 1.5;
-        }
-        #closeTextInfoBtn {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background-color: transparent;
-            color: white;
-            border: none;
-            font-size: 1.2rem;
-            cursor: pointer;
+            line-height: 1.5; /* Text will wrap automatically */
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
-            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         /* New styles for zoom buttons and slider */
@@ -473,7 +463,6 @@
 
             <div id="textInfoBox">
                 <p id="textInfoContent"></p>
-                <button id="closeTextInfoBtn">X</button>
             </div>
             
             <button id="closePopupBtn"></button>
@@ -535,6 +524,9 @@
         // New variable for sound state
         let isSoundOn = false;
 
+        // New timer for the auto-hiding text info box
+        let textInfoTimer = null;
+
         // HTML elements
         const landingPage = document.getElementById('landingPage');
         const startButton = document.getElementById('startButton');
@@ -548,7 +540,6 @@
         const hotspot2DContainer = document.getElementById('hotspot2DContainer');
         const textInfoBox = document.getElementById('textInfoBox');
         const textInfoContent = document.getElementById('textInfoContent');
-        const closeTextInfoBtn = document.getElementById('closeTextInfoBtn');
         const instructionPopupOverlay = document.getElementById('instructionPopupOverlay');
         const closeInstructionBtn = document.getElementById('closeInstructionBtn');
         const static360Icon = document.getElementById('static360Icon');
@@ -851,9 +842,6 @@
             popupContent.addEventListener('touchstart', onPopupTouchStart);
             popupContent.addEventListener('touchend', onPopupTouchEnd);
             popupContent.addEventListener('touchmove', onPopupTouchMove);
-
-            // 10. Add event listener for the new close text info button
-            closeTextInfoBtn.addEventListener('click', hideTextInfo);
 
             // 11. Add event listener for instruction popup close button
             closeInstructionBtn.addEventListener('click', hideInstructionPopup);
@@ -1250,8 +1238,16 @@
          * @param {string} text - The text to display in the info box.
          */
         function showTextInfo(text) {
+            // Clear any existing timer to prevent the box from closing prematurely
+            if (textInfoTimer) {
+                clearTimeout(textInfoTimer);
+            }
+
             textInfoContent.textContent = text;
             textInfoBox.style.display = 'block';
+
+            // Set a timer to hide the box after 2 seconds (2000 milliseconds)
+            textInfoTimer = setTimeout(hideTextInfo, 2000);
         }
 
         /**
