@@ -36,7 +36,7 @@
             flex-direction: column;
             justify-content: flex-end; /* Align items to the bottom */
             align-items: center;
-            background: url("res/landing/landing.jpeg") no-repeat center center;
+            background: url("res/landing/landing.jpeg") no-repeat center bottom;
             background-size: cover;
             text-align: center;
             z-index: 100;
@@ -568,7 +568,7 @@
         // Note: The imageUrl is now just a filename or relative path.
         const popupOptions = [
             {
-                imageUrl: "1.png",
+                imageUrl: "1.jpg",
                 hotspots2D: [
                     {
                       x: 40,
@@ -594,7 +594,22 @@
                 ]
             },
             {
-                imageUrl: "2.png",
+                imageUrl: "2.jpg",
+                
+            },
+            {
+                imageUrl: "3.jpg",
+                
+            },
+            {
+                imageUrl: "4.jpg",
+                
+            },
+            {
+                imageUrl: "5.jpg",
+            },
+            {
+                imageUrl: "6.jpg",
                 hotspots2D: [
                     {
                       x: 60,
@@ -604,13 +619,27 @@
                       next_path: "res/3D/bonnet_open_360/",
                       soundUrl: "res/ui/bonnet_clip.mp3",
                       sequenceImages: [
-                          "res/3D/bonnet_open/1.png",
-                          "res/3D/bonnet_open/2.png",
-                          "res/3D/bonnet_open/3.png",
-                          "res/3D/bonnet_open/4.png",
-                          "res/3D/bonnet_open/5.png",
-                          "res/3D/bonnet_open/6.png",
-                          "res/3D/bonnet_open/7.png"
+                          "res/3D/bonnet_open/1.jpg",
+                          "res/3D/bonnet_open/2.jpg",
+                          "res/3D/bonnet_open/3.jpg",
+                          "res/3D/bonnet_open/4.jpg",
+                          "res/3D/bonnet_open/5.jpg",
+                          "res/3D/bonnet_open/6.jpg",
+                          "res/3D/bonnet_open/7.jpg",
+                          "res/3D/bonnet_open/8.jpg",
+                          "res/3D/bonnet_open/9.jpg",
+                          "res/3D/bonnet_open/10.jpg",
+                          "res/3D/bonnet_open/11.jpg",
+                          "res/3D/bonnet_open/12.jpg",
+                          "res/3D/bonnet_open/13.jpg",
+                          "res/3D/bonnet_open/14.jpg",
+                          "res/3D/bonnet_open/15.jpg",
+                          "res/3D/bonnet_open/16.jpg",
+                          "res/3D/bonnet_open/17.jpg",
+                          "res/3D/bonnet_open/18.jpg",
+                          "res/3D/bonnet_open/19.jpg",
+                          "res/3D/bonnet_open/20.jpg",
+                          "res/3D/bonnet_open/21.jpg",
                       ]
                     },
                     // {
@@ -654,7 +683,13 @@
                 ]
             },
             {
-                imageUrl: "3.png",
+                imageUrl: "7.jpg",
+            },
+            {
+                imageUrl: "8.jpg",
+            },
+            {
+                imageUrl: "9.jpg",
                 hotspots2D: [
                     {
                       x: 57,
@@ -680,7 +715,19 @@
                 ]
             },
             {
-                imageUrl: "4.png",
+                imageUrl: "10.jpg",
+            },
+            {
+                imageUrl: "11.jpg",
+            },
+            {
+                imageUrl: "12.jpg",
+            },
+            {
+                imageUrl: "13.jpg",
+            },
+            {
+                imageUrl: "14.jpg",
                 hotspots2D: [
                     {
                       x: 55,
@@ -706,7 +753,25 @@
                 ]
             },
             {
-                imageUrl: "5.png",
+                imageUrl: "15.jpg",
+            },
+            {
+                imageUrl: "16.jpg",
+            },
+            {
+                imageUrl: "17.jpg",
+            },
+            {
+                imageUrl: "18.jpg",
+            },
+            {
+                imageUrl: "19.jpg",
+            },
+            {
+                imageUrl: "20.jpg",
+            },
+            {
+                imageUrl: "21.jpg",
             }
         ];
 
@@ -1302,7 +1367,7 @@
             textInfoBox.style.display = 'flex';
 
             // Set a timer to hide the box after 2 seconds (2000 milliseconds)
-            textInfoTimer = setTimeout(hideTextInfo, 2000);
+            textInfoTimer = setTimeout(hideTextInfo, 5000);
         }
 
         /**
@@ -1325,7 +1390,7 @@
             
             animationImages = images;
             animationImageIndex = 0;
-            const animationDuration = 500; // 2 seconds
+            const animationDuration = 100; // 2 seconds
 
             // Function to advance the animation
             function advanceAnimation() {
