@@ -204,7 +204,7 @@
             background-color: #fff; /* Changed to white */
             display: none; /* Hidden by default */
             justify-content: center;
-            align-items: center;
+            align-items: flex-end; /* Align content to the bottom */
             z-index: 150;
         }
         
@@ -214,8 +214,8 @@
             height: 100%;
             overflow: hidden; /* Keep overflow hidden */
             display: flex;
-            justify-content: center;
-            align-items: center;
+            justify-content: center; /* Center horizontally */
+            align-items: flex-end; /* Align to bottom */
             cursor: grab; /* Add grab cursor for dragging */
         }
         
@@ -224,12 +224,10 @@
         }
 
         #popupImage {
-            width: 100%; /* Cover the full width */
-            height: auto; /* Adjust height to maintain aspect ratio */
-            object-fit: contain; /* Ensures it fits within the bounds while maintaining aspect ratio */
+            width: 100%;
+            height: auto;
             user-select: none; /* Prevent image from being selected while dragging */
             transition: transform 0.3s ease; /* Smooth zoom transition */
-            /* Removed position: absolute to allow flexbox centering */
         }
 
         #closePopupBtn {
