@@ -522,6 +522,7 @@
 
         // New variable for sound state
         let isSoundOn = false;
+        let bonnetSound = null; // To hold the looping sound element
 
         // New timer for the auto-hiding text info box
         let textInfoTimer = null;
@@ -848,6 +849,11 @@
 
             // Create a texture from the video
             hotspotVideoTexture = new THREE.VideoTexture(hotspotVideo);
+            
+            // Initialize the looping sound for the bonnet
+            bonnetSound = new Audio('res/ui/bonnet_clip.mp3');
+            bonnetSound.loop = true;
+
 
             // 1. Scene setup
             scene = new THREE.Scene();
@@ -1263,6 +1269,12 @@
             static360Icon.style.opacity = '1';
             verticalToolbar.style.display = 'flex';
 
+            // Stop the looping sound
+            if (bonnetSound) {
+                bonnetSound.pause();
+                bonnetSound.currentTime = 0;
+            }
+
             // Reset zoom and pan when the popup is closed
             zoomLevel = 1;
             panX = 0;
@@ -1318,7 +1330,13 @@
                     hotspotElement.addEventListener('click', () => {
                         // Play sound if one is associated with this hotspot
                         if (hotspotData.soundUrl) {
-                            playSound(hotspotData.soundUrl);
+                            if (hotspotData.soundUrl.includes('bonnet_clip.mp3')) {
+                                if (isSoundOn) {
+                                    bonnetSound.play().catch(e => console.error("Error playing sound:", e));
+                                }
+                            } else {
+                                playSound(hotspotData.soundUrl);
+                            }
                         }
 
                         if (hotspotData.type === "image_sequence" && hotspotData.sequenceImages) {
@@ -1647,6 +1665,12 @@
             document.querySelectorAll('video').forEach(video => {
                 video.muted = !isSoundOn;
             });
+
+            // Immediately toggle the looping sound's muted state
+            if (bonnetSound) {
+                bonnetSound.muted = !isSoundOn;
+            }
+
             updateSoundButton();
         }
         
