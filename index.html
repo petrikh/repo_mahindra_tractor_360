@@ -1501,13 +1501,23 @@
                     
                     // Create and append the static image for the hotspot
                     const hotspotImage = document.createElement('img');
-                    hotspotImage.src = 'res/ui/hotspot_normal.png';
+                    
+                    if (hotspotData.type === "image_sequence_with_path_change") {
+                        hotspotImage.src = 'res/ui/hotspot_bonnet.png';
+                    } else {
+                        hotspotImage.src = 'res/ui/hotspot_normal.png';
+                    }
+                    
                     hotspotImage.style.display = 'block';
                     hotspotElement.appendChild(hotspotImage);
 
                     // Create and append the looping video for the hotspot
                     const hotspotVideo = document.createElement('video');
-                    hotspotVideo.src = 'res/ui/hotspot_optionspopup.webm';
+                    if (hotspotData.type === "image_sequence_with_path_change") {
+                       hotspotVideo.src = 'res/ui/hotspot.webm';
+                    } else {
+                        hotspotVideo.src = 'res/ui/hotspot_optionspopup.webm';
+                    }
                     hotspotVideo.loop = true;
                     hotspotVideo.muted = true;
                     hotspotVideo.playsInline = true;
