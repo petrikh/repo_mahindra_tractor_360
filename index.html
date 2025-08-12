@@ -832,107 +832,7 @@
             }
         ];
 
-        /**
-         * Initializes the 360-degree image viewer.
-         * Sets up the scene, camera, renderer, and loads the initial panoramic image onto a sphere.
-         */
-        function init() {
-            // Create a video element in memory to be used as a texture for hotspots
-            const hotspotVideo = document.createElement('video');
-            hotspotVideo.src = 'res/ui/hotspot.webm'; // The video for the hotspot
-            hotspotVideo.loop = true;
-            hotspotVideo.muted = !isSoundOn;
-            hotspotVideo.playsInline = true;
-            hotspotVideo.play(); // Start playing the video
-
-            // Create a texture from the video
-            hotspotVideoTexture = new THREE.VideoTexture(hotspotVideo);
-            
-            // Initialize the looping sound for the bonnet
-            bonnetSound = new Audio('res/ui/bonnet_clip.mp3');
-            bonnetSound.loop = true;
-
-
-            // 1. Scene setup
-            scene = new THREE.Scene();
-
-            // 2. Camera setup
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 0, 0);
-            // Set initial camera rotation to face the default panorama view
-            camera.rotation.y = -Math.PI / 2;
-
-            // 3. Renderer setup
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
-            renderer.domElement.style.display = 'block'; // Show the canvas
-
-            console.log("Max Texture Size supported by GPU:", renderer.capabilities.maxTextureSize);
-
-            // 4. Create initial sphere geometry
-            const geometry = new THREE.SphereGeometry(100, 60, 40);
-            material = new THREE.MeshBasicMaterial({ side: THREE.BackSide });
-            sphere = new THREE.Mesh(geometry, material);
-            scene.add(sphere);
-
-            // Load the first panoramic image
-            loadPanoramicImage(panoData[0].imageUrl, 0);
-
-            // 5. Add event listeners for mouse interaction (desktop)
-            renderer.domElement.addEventListener('mousedown', onMouseDown);
-            renderer.domElement.addEventListener('mouseup', onMouseUp);
-            renderer.domElement.addEventListener('mousemove', onMouseMove);
-            renderer.domElement.addEventListener('click', onCanvasClick);
-            renderer.domElement.addEventListener('wheel', onMouseWheel);
-
-            // 6. Add event listeners for touch interaction (mobile)
-            renderer.domElement.addEventListener('touchstart', onTouchStart);
-            renderer.domElement.addEventListener('touchend', onTouchEnd);
-            renderer.domElement.addEventListener('touchmove', onTouchMove);
-
-            // 7. Handle window resizing
-            window.addEventListener('resize', onWindowResize, false);
-
-            // 8. Add event listener for close video button
-            closeVideoBtn.addEventListener('click', hideVideo);
-
-            // 9. Add event listeners for new popup
-            closePopupBtn.addEventListener('click', hideOptionsPopup);
-            optionSlider.addEventListener('input', onSliderChange); // SLIDER event listener
-            
-            // New event listeners for popup drag functionality
-            popupContent.addEventListener('mousedown', onPopupMouseDown);
-            popupContent.addEventListener('mouseup', onPopupMouseUp);
-            popupContent.addEventListener('mousemove', onPopupMouseMove);
-            popupContent.addEventListener('mouseleave', onPopupMouseUp);
-            popupContent.addEventListener('touchstart', onPopupTouchStart);
-            popupContent.addEventListener('touchend', onPopupTouchEnd);
-            popupContent.addEventListener('touchmove', onPopupTouchMove);
-
-            // 11. Add event listener for instruction popup close button
-            closeInstructionBtn.addEventListener('click', hideInstructionPopup);
-            
-            // 12. Add event listeners for new vertical toolbar
-            fullscreenBtn.addEventListener('click', toggleFullScreen);
-            zoomIn360Btn.addEventListener('click', zoomIn360);
-            zoomOut360Btn.addEventListener('click', zoomOut360);
-            soundBtn.addEventListener('click', toggleSound);
-
-            // 13. Ensure UI videos loop correctly
-            // The `loop` attribute should work, but this is a robust fallback.
-            document.querySelectorAll('#static360Icon video').forEach(video => {
-                video.addEventListener('ended', function() {
-                    this.currentTime = 0;
-                    this.play().catch(e => {
-                        console.warn("Could not restart video loop:", e);
-                    });
-                });
-            });
-            updateSoundButton(); // Set initial sound button image
-        }
-
+        
         /**
          * Handles mouse wheel events for zooming.
          */
@@ -942,121 +842,6 @@
             camera.fov += event.deltaY * 0.05 * zoomSpeed;
             camera.fov = Math.max(10, Math.min(60, camera.fov));
             camera.updateProjectionMatrix();
-        }
-
-        /**
-         * Loads a new panoramic image and applies it to the sphere, and updates hotspots.
-         * @param {string} imageUrl - The URL of the panoramic image to load.
-         * @param {number} panoIndex - The index of the current panorama in panoData.
-         */
-        function loadPanoramicImage(imageUrl, panoIndex) {
-            // Clear existing hotspots
-            hotspotMeshes.forEach(mesh => scene.remove(mesh));
-            hotspotMeshes = [];
-
-            new THREE.TextureLoader().load(imageUrl, (texture) => {
-                texture.wrapS = THREE.RepeatWrapping;
-                texture.repeat.x = -1;
-                material.map = texture;
-                material.needsUpdate = true;
-
-                const currentPano = panoData[panoIndex];
-                if (currentPano && currentPano.hotspots) {
-                    currentPano.hotspots.forEach(createHotspot);
-                }},
-                undefined,
-                function (error) {
-                    console.error('An error occurred loading the texture:', error);
-                    // Fallback to a plain color if the texture fails to load
-                    material.map = null;
-                    material.color.setHex(0x1a1a1a);
-                    material.needsUpdate = true;
-                }
-            );
-        }
-
-        /**
-         * Creates a canvas element with text drawn on it.
-         * @param {string} text - The text to draw.
-         * @param {object} opts - Options for styling.
-         * @returns {HTMLCanvasElement}
-         */
-        function createTextCanvas(text, opts) {
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            const font = `${opts.fontSize || 24}px ${opts.fontFace || 'Arial'}`;
-            context.font = font;
-            
-            const metrics = context.measureText(text);
-            const textWidth = metrics.width;
-            
-            canvas.width = textWidth;
-            canvas.height = opts.fontSize || 24;
-            
-            context.font = font; // Re-apply font after resize
-            context.fillStyle = opts.color || 'black';
-            context.fillText(text, 0, (opts.fontSize || 24) * 0.85); // Adjust vertical alignment
-            return canvas;
-        }
-
-        /**
-         * Creates a 3D hotspot mesh and adds it to the scene.
-         * @param {object} hotspotData - An object containing hotspot details.
-         */
-        function createHotspot(hotspotData) {
-            let hotspotObject; // Can be a Mesh for arrows or a Sprite for video hotspots
-            
-            if (hotspotData.type === "arrow") {
-                const hotspotGeometry = new THREE.PlaneGeometry(20, 10);
-                const arrowTexture = new THREE.TextureLoader().load("res/ui/nav_arrow.png");
-                const hotspotMaterial = new THREE.MeshBasicMaterial({
-                    map: arrowTexture,
-                    transparent: true,
-                    side: THREE.DoubleSide
-                });
-                hotspotObject = new THREE.Mesh(hotspotGeometry, hotspotMaterial);
-                if (hotspotData.rotation) {
-                    hotspotObject.rotation.x = 3.14/2;
-                }
-            } else {
-                const spriteMaterial = new THREE.SpriteMaterial({ 
-                    map: hotspotVideoTexture,
-                    transparent: true,
-                    blending: THREE.AdditiveBlending, // Makes black areas of the video transparent
-                    depthWrite: false // Important for transparent objects to render correctly
-                });
-                hotspotObject = new THREE.Sprite(spriteMaterial);
-                hotspotObject.scale.set(5, 5, 1); // Adjust size of the sprite
-            }
-
-            // If the hotspot has a label (and is not an arrow), create a text sprite and group them
-            if (hotspotData.label && hotspotData.type !== 'arrow') {
-                const textCanvas = createTextCanvas(hotspotData.label, { color: 'black', fontSize: 30 });
-                const textTexture = new THREE.CanvasTexture(textCanvas);
-                const textMaterial = new THREE.SpriteMaterial({ map: textTexture, transparent: true });
-                const textSprite = new THREE.Sprite(textMaterial);
-
-                // Scale the text sprite based on its canvas dimensions
-                const scaleFactor = 10;
-                textSprite.scale.set(textCanvas.width / scaleFactor, textCanvas.height / scaleFactor, 1);
-
-                // Position the text sprite below the main hotspot icon
-                textSprite.position.y = -5; // Adjust this value as needed
-
-                // Group the icon and the text
-                const group = new THREE.Group();
-                group.add(hotspotObject);
-                group.add(textSprite);
-                group.position.copy(hotspotData.position);
-                group.userData = hotspotData; // Carry data on the group
-                scene.add(group);
-                hotspotMeshes.push(group);
-            } else {
-                hotspotObject.position.copy(hotspotData.position);
-                hotspotObject.userData = hotspotData;
-                scene.add(hotspotObject);
-                hotspotMeshes.push(hotspotObject);
-            }
         }
 
         /**
@@ -1174,6 +959,226 @@
             previousMousePosition.y = event.touches[0].clientY;
             event.preventDefault();
         }
+        
+        /**
+         * Handles the mouse down event for dragging the popup image.
+         */
+        function onPopupMouseDown(event) {
+            // Prevent dragging if the user clicks on a hotspot
+            if (event.target.classList.contains('hotspot-2d') || event.target.id === 'optionSlider') return;
+
+            isPopupDragging = true;
+            startPopupDragX = event.clientX;
+            startPopupDragY = event.clientY;
+            startPanX = panX; // Store current pan position
+            startPanY = panY;
+            popupContent.classList.add('dragging');
+        }
+
+        /**
+         * Handles the mouse up event for the popup image.
+         */
+        function onPopupMouseUp(event) {
+            if (!isPopupDragging) return;
+
+            const deltaX = event.clientX - startPopupDragX;
+            const deltaY = event.clientY - startPopupDragY;
+
+            // Only switch images if not zoomed in and the drag distance is sufficient
+            if (zoomLevel === 1 && Math.abs(deltaX) > dragThreshold) {
+                if (deltaX > 0) {
+                    currentPopupOptionIndex = (currentPopupOptionIndex - 1 + popupOptions.length) % popupOptions.length;
+                } else {
+                    currentPopupOptionIndex = (currentPopupOptionIndex + 1) % popupOptions.length;
+                }
+                updatePopupImage(currentPopupOptionIndex);
+            }
+
+            isPopupDragging = false;
+            popupContent.classList.remove('dragging');
+        }
+        
+        /**
+         * Handles the mouse move event for dragging the popup image.
+         */
+        function onPopupMouseMove(event) {
+            if (!isPopupDragging || isAnimating || zoomLevel === 1) return;
+
+            const deltaX = event.clientX - startPopupDragX;
+            const deltaY = event.clientY - startPopupDragY;
+
+            // Panning logic, only if zoomed in
+            panX = startPanX + deltaX;
+            panY = startPanY + deltaY;
+
+            // Add boundary checks to prevent panning too far
+            const maxPanX = (popupImage.offsetWidth * (zoomLevel - 1)) / 2;
+            const maxPanY = (popupImage.offsetHeight * (zoomLevel - 1)) / 2;
+
+            panX = Math.max(-maxPanX, Math.min(maxPanX, panX));
+            panY = Math.max(-maxPanY, Math.min(maxPanY, panY));
+            
+            updateImageTransform();
+        }
+        
+        /**
+         * Handles the touch start event for the popup image.
+         */
+        function onPopupTouchStart(event) {
+            if (event.touches.length === 1 && !event.target.classList.contains('hotspot-2d') && event.target.id !== 'optionSlider') {
+                isPopupDragging = true;
+                startPopupDragX = event.touches[0].clientX;
+                startPopupDragY = event.touches[0].clientY;
+                startPanX = panX;
+                startPanY = panY;
+            }
+        }
+        
+        /**
+         * Handles the touch end event for the popup image.
+         */
+        function onPopupTouchEnd(event) {
+            if (!isPopupDragging) return;
+            const touch = event.changedTouches[0];
+            const deltaX = touch.clientX - startPopupDragX;
+            const deltaY = touch.clientY - startPopupDragY;
+
+            if (zoomLevel === 1 && Math.abs(deltaX) > dragThreshold) {
+                if (deltaX > 0) {
+                    currentPopupOptionIndex = (currentPopupOptionIndex - 1 + popupOptions.length) % popupOptions.length;
+                } else {
+                    currentPopupOptionIndex = (currentPopupOptionIndex + 1) % popupOptions.length;
+                }
+                updatePopupImage(currentPopupOptionIndex);
+            }
+
+            isPopupDragging = false;
+        }
+
+        /**
+         * Handles the touch move event for the popup image.
+         */
+        function onPopupTouchMove(event) {
+            if (!isPopupDragging || event.touches.length !== 1 || isAnimating || zoomLevel === 1) return;
+            
+            const deltaX = event.touches[0].clientX - startPopupDragX;
+            const deltaY = event.touches[0].clientY - startPopupDragY;
+
+            // Panning logic, only if zoomed in
+            panX = startPanX + deltaX;
+            panY = startPanY + deltaY;
+            
+            const maxPanX = (popupImage.offsetWidth * (zoomLevel - 1)) / 2;
+            const maxPanY = (popupImage.offsetHeight * (zoomLevel - 1)) / 2;
+            
+            panX = Math.max(-maxPanX, Math.min(maxPanX, panX));
+            panY = Math.max(-maxPanY, Math.min(maxPanY, panY));
+            
+            updateImageTransform();
+
+            event.preventDefault(); // Prevent scrolling while dragging
+        }
+
+        /**
+         * Initializes the 360-degree image viewer.
+         * Sets up the scene, camera, renderer, and loads the initial panoramic image onto a sphere.
+         */
+        function init() {
+            // Create a video element in memory to be used as a texture for hotspots
+            const hotspotVideo = document.createElement('video');
+            hotspotVideo.src = 'res/ui/hotspot.webm'; // The video for the hotspot
+            hotspotVideo.loop = true;
+            hotspotVideo.muted = !isSoundOn;
+            hotspotVideo.playsInline = true;
+            hotspotVideo.play(); // Start playing the video
+
+            // Create a texture from the video
+            hotspotVideoTexture = new THREE.VideoTexture(hotspotVideo);
+            
+            // Initialize the looping sound for the bonnet
+            bonnetSound = new Audio('res/ui/bonnet_clip.mp3');
+            bonnetSound.loop = true;
+
+
+            // 1. Scene setup
+            scene = new THREE.Scene();
+
+            // 2. Camera setup
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 0, 0);
+            // Set initial camera rotation to face the default panorama view
+            camera.rotation.y = -Math.PI / 2;
+
+            // 3. Renderer setup
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+            renderer.domElement.style.display = 'block'; // Show the canvas
+
+            console.log("Max Texture Size supported by GPU:", renderer.capabilities.maxTextureSize);
+
+            // 4. Create initial sphere geometry
+            const geometry = new THREE.SphereGeometry(100, 60, 40);
+            material = new THREE.MeshBasicMaterial({ side: THREE.BackSide });
+            sphere = new THREE.Mesh(geometry, material);
+            scene.add(sphere);
+
+            // Load the first panoramic image
+            loadPanoramicImage(panoData[0].imageUrl, 0);
+
+            // 5. Add event listeners for mouse interaction (desktop)
+            renderer.domElement.addEventListener('mousedown', onMouseDown);
+            renderer.domElement.addEventListener('mouseup', onMouseUp);
+            renderer.domElement.addEventListener('mousemove', onMouseMove);
+            renderer.domElement.addEventListener('click', onCanvasClick);
+            renderer.domElement.addEventListener('wheel', onMouseWheel);
+
+            // 6. Add event listeners for touch interaction (mobile)
+            renderer.domElement.addEventListener('touchstart', onTouchStart);
+            renderer.domElement.addEventListener('touchend', onTouchEnd);
+            renderer.domElement.addEventListener('touchmove', onTouchMove);
+
+            // 7. Handle window resizing
+            window.addEventListener('resize', onWindowResize, false);
+
+            // 8. Add event listener for close video button
+            closeVideoBtn.addEventListener('click', hideVideo);
+
+            // 9. Add event listeners for new popup
+            closePopupBtn.addEventListener('click', hideOptionsPopup);
+            optionSlider.addEventListener('input', onSliderChange); // SLIDER event listener
+            
+            // New event listeners for popup drag functionality
+            popupContent.addEventListener('mousedown', onPopupMouseDown);
+            popupContent.addEventListener('mouseup', onPopupMouseUp);
+            popupContent.addEventListener('mousemove', onPopupMouseMove);
+            popupContent.addEventListener('mouseleave', onPopupMouseUp);
+            popupContent.addEventListener('touchstart', onPopupTouchStart);
+            popupContent.addEventListener('touchend', onPopupTouchEnd);
+            popupContent.addEventListener('touchmove', onPopupTouchMove);
+
+            // 11. Add event listener for instruction popup close button
+            closeInstructionBtn.addEventListener('click', hideInstructionPopup);
+            
+            // 12. Add event listeners for new vertical toolbar
+            fullscreenBtn.addEventListener('click', toggleFullScreen);
+            zoomIn360Btn.addEventListener('click', zoomIn360);
+            zoomOut360Btn.addEventListener('click', zoomOut360);
+            soundBtn.addEventListener('click', toggleSound);
+
+            // 13. Ensure UI videos loop correctly
+            // The `loop` attribute should work, but this is a robust fallback.
+            document.querySelectorAll('#static360Icon video').forEach(video => {
+                video.addEventListener('ended', function() {
+                    this.currentTime = 0;
+                    this.play().catch(e => {
+                        console.warn("Could not restart video loop:", e);
+                    });
+                });
+            });
+            updateSoundButton(); // Set initial sound button image
+        }
 
         /**
          * Adjusts the camera aspect ratio and renderer size on window resize.
@@ -1182,6 +1187,156 @@
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        /**
+         * Loads a new panoramic image and applies it to the sphere, and updates hotspots.
+         * @param {string} imageUrl - The URL of the panoramic image to load.
+         * @param {number} panoIndex - The index of the current panorama in panoData.
+         */
+        function loadPanoramicImage(imageUrl, panoIndex) {
+            // Clear existing hotspots
+            hotspotMeshes.forEach(mesh => scene.remove(mesh));
+            hotspotMeshes = [];
+
+            new THREE.TextureLoader().load(imageUrl, (texture) => {
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.repeat.x = -1;
+                material.map = texture;
+                material.needsUpdate = true;
+
+                const currentPano = panoData[panoIndex];
+                if (currentPano && currentPano.hotspots) {
+                    currentPano.hotspots.forEach(createHotspot);
+                }},
+                undefined,
+                function (error) {
+                    console.error('An error occurred loading the texture:', error);
+                    // Fallback to a plain color if the texture fails to load
+                    material.map = null;
+                    material.color.setHex(0x1a1a1a);
+                    material.needsUpdate = true;
+                }
+            );
+        }
+
+        /**
+         * Creates a canvas element with text drawn on it.
+         * @param {string} text - The text to draw.
+         * @param {object} opts - Options for styling.
+         * @returns {HTMLCanvasElement}
+         */
+        function createTextCanvas(text, opts) {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            const font = `${opts.fontSize || 24}px ${opts.fontFace || 'Arial'}`;
+            context.font = font;
+            
+            const metrics = context.measureText(text);
+            const textWidth = metrics.width;
+            
+            canvas.width = textWidth;
+            canvas.height = opts.fontSize || 24;
+            
+            context.font = font; // Re-apply font after resize
+            context.fillStyle = opts.color || 'black';
+            context.fillText(text, 0, (opts.fontSize || 24) * 0.85); // Adjust vertical alignment
+            return canvas;
+        }
+
+        /**
+         * Creates a 3D hotspot mesh and adds it to the scene.
+         * @param {object} hotspotData - An object containing hotspot details.
+         */
+        function createHotspot(hotspotData) {
+            let hotspotObject; // This will be the main 3D object for the hotspot.
+            
+            // If the hotspot is an arrow, create a plane with a looping video texture.
+            if (hotspotData.type === "arrow") {
+                // 1. Create a video element in memory for the arrow animation.
+                const arrowVideo = document.createElement('video');
+                arrowVideo.src = 'res/ui/nav_arrow.webm'; // Use the webm video file.
+                arrowVideo.loop = true;
+                arrowVideo.muted = true; // Mute to allow autoplay on most browsers.
+                arrowVideo.playsInline = true;
+                arrowVideo.play().catch(e => console.error("Autoplay failed for arrow video", e));
+
+                // 2. Create a Three.js texture from the video element.
+                const arrowVideoTexture = new THREE.VideoTexture(arrowVideo);
+
+                // 3. Create the geometry (a flat plane) and material for the hotspot.
+                const hotspotGeometry = new THREE.PlaneGeometry(15, 10); // Adjust size as needed.
+                const hotspotMaterial = new THREE.MeshBasicMaterial({
+                    map: arrowVideoTexture,
+                    transparent: true,
+                    side: THREE.DoubleSide,
+                });
+
+                hotspotMaterial.onBeforeCompile = (shader) => {
+                    shader.fragmentShader = shader.fragmentShader.replace(
+                        '#include <map_fragment>',
+                        `
+                        #ifdef USE_MAP
+                            vec4 texelColor = texture2D( map, vUv );
+                            texelColor = mapTexelToLinear( texelColor );
+                            float luma = dot(texelColor.rgb, vec3(0.299, 0.587, 0.114));
+                            if (luma < 0.2) discard;
+                            diffuseColor *= texelColor;
+                        #endif
+                        `
+                    );
+                };
+
+                // 4. Create the final mesh object.
+                hotspotObject = new THREE.Mesh(hotspotGeometry, hotspotMaterial);
+                
+                // 5. Apply rotation if specified in the data.
+                if (hotspotData.rotation) {
+                    // This is the corrected rotation logic.
+                    // First, rotate the plane to be horizontal (on the XZ plane).
+                    // Then, apply the directional rotation from the data.
+                    hotspotObject.rotation.set(Math.PI / 2, 0, hotspotData.rotation.z);
+                }
+            } else { // For other hotspot types (like 'popup'), use the original sprite with video.
+                const spriteMaterial = new THREE.SpriteMaterial({ 
+                    map: hotspotVideoTexture, // Use the pre-loaded hotspot video.
+                    transparent: true,
+                    blending: THREE.AdditiveBlending, // Good for glow effects.
+                    depthWrite: false // Helps with transparency rendering.
+                });
+                hotspotObject = new THREE.Sprite(spriteMaterial);
+                hotspotObject.scale.set(5, 5, 1); // Adjust sprite size.
+            }
+
+            // If the hotspot has a label (and is not an arrow), create a text sprite and group them.
+            if (hotspotData.label && hotspotData.type !== 'arrow') {
+                const textCanvas = createTextCanvas(hotspotData.label, { color: 'black', fontSize: 30 });
+                const textTexture = new THREE.CanvasTexture(textCanvas);
+                const textMaterial = new THREE.SpriteMaterial({ map: textTexture, transparent: true });
+                const textSprite = new THREE.Sprite(textMaterial);
+
+                // Scale the text sprite based on its canvas dimensions.
+                const scaleFactor = 10;
+                textSprite.scale.set(textCanvas.width / scaleFactor, textCanvas.height / scaleFactor, 1);
+
+                // Position the text sprite below the main hotspot icon.
+                textSprite.position.y = -5; // Adjust as needed.
+
+                // Group the icon and the text together.
+                const group = new THREE.Group();
+                group.add(hotspotObject);
+                group.add(textSprite);
+                group.position.copy(hotspotData.position);
+                group.userData = hotspotData; // Attach data to the group for click events.
+                scene.add(group);
+                hotspotMeshes.push(group);
+            } else {
+                // For arrows or hotspots without labels, just add the object directly.
+                hotspotObject.position.copy(hotspotData.position);
+                hotspotObject.userData = hotspotData;
+                scene.add(hotspotObject);
+                hotspotMeshes.push(hotspotObject);
+            }
         }
 
         /**
@@ -1496,125 +1651,6 @@
             }
         }
         
-        /**
-         * Handles the mouse down event for dragging the popup image.
-         */
-        function onPopupMouseDown(event) {
-            // Prevent dragging if the user clicks on a hotspot
-            if (event.target.classList.contains('hotspot-2d') || event.target.id === 'optionSlider') return;
-
-            isPopupDragging = true;
-            startPopupDragX = event.clientX;
-            startPopupDragY = event.clientY;
-            startPanX = panX; // Store current pan position
-            startPanY = panY;
-            popupContent.classList.add('dragging');
-        }
-
-        /**
-         * Handles the mouse up event for the popup image.
-         */
-        function onPopupMouseUp(event) {
-            if (!isPopupDragging) return;
-
-            const deltaX = event.clientX - startPopupDragX;
-            const deltaY = event.clientY - startPopupDragY;
-
-            // Only switch images if not zoomed in and the drag distance is sufficient
-            if (zoomLevel === 1 && Math.abs(deltaX) > dragThreshold) {
-                if (deltaX > 0) {
-                    currentPopupOptionIndex = (currentPopupOptionIndex - 1 + popupOptions.length) % popupOptions.length;
-                } else {
-                    currentPopupOptionIndex = (currentPopupOptionIndex + 1) % popupOptions.length;
-                }
-                updatePopupImage(currentPopupOptionIndex);
-            }
-
-            isPopupDragging = false;
-            popupContent.classList.remove('dragging');
-        }
-        
-        /**
-         * Handles the mouse move event for dragging the popup image.
-         */
-        function onPopupMouseMove(event) {
-            if (!isPopupDragging || isAnimating || zoomLevel === 1) return;
-
-            const deltaX = event.clientX - startPopupDragX;
-            const deltaY = event.clientY - startPopupDragY;
-
-            // Panning logic, only if zoomed in
-            panX = startPanX + deltaX;
-            panY = startPanY + deltaY;
-
-            // Add boundary checks to prevent panning too far
-            const maxPanX = (popupImage.offsetWidth * (zoomLevel - 1)) / 2;
-            const maxPanY = (popupImage.offsetHeight * (zoomLevel - 1)) / 2;
-
-            panX = Math.max(-maxPanX, Math.min(maxPanX, panX));
-            panY = Math.max(-maxPanY, Math.min(maxPanY, panY));
-            
-            updateImageTransform();
-        }
-        
-        /**
-         * Handles the touch start event for the popup image.
-         */
-        function onPopupTouchStart(event) {
-            if (event.touches.length === 1 && !event.target.classList.contains('hotspot-2d') && event.target.id !== 'optionSlider') {
-                isPopupDragging = true;
-                startPopupDragX = event.touches[0].clientX;
-                startPopupDragY = event.touches[0].clientY;
-                startPanX = panX;
-                startPanY = panY;
-            }
-        }
-        
-        /**
-         * Handles the touch end event for the popup image.
-         */
-        function onPopupTouchEnd(event) {
-            if (!isPopupDragging) return;
-            const touch = event.changedTouches[0];
-            const deltaX = touch.clientX - startPopupDragX;
-            const deltaY = touch.clientY - startPopupDragY;
-
-            if (zoomLevel === 1 && Math.abs(deltaX) > dragThreshold) {
-                if (deltaX > 0) {
-                    currentPopupOptionIndex = (currentPopupOptionIndex - 1 + popupOptions.length) % popupOptions.length;
-                } else {
-                    currentPopupOptionIndex = (currentPopupOptionIndex + 1) % popupOptions.length;
-                }
-                updatePopupImage(currentPopupOptionIndex);
-            }
-
-            isPopupDragging = false;
-        }
-
-        /**
-         * Handles the touch move event for the popup image.
-         */
-        function onPopupTouchMove(event) {
-            if (!isPopupDragging || event.touches.length !== 1 || isAnimating || zoomLevel === 1) return;
-            
-            const deltaX = event.touches[0].clientX - startPopupDragX;
-            const deltaY = event.touches[0].clientY - startPopupDragY;
-
-            // Panning logic, only if zoomed in
-            panX = startPanX + deltaX;
-            panY = startPanY + deltaY;
-            
-            const maxPanX = (popupImage.offsetWidth * (zoomLevel - 1)) / 2;
-            const maxPanY = (popupImage.offsetHeight * (zoomLevel - 1)) / 2;
-            
-            panX = Math.max(-maxPanX, Math.min(maxPanX, panX));
-            panY = Math.max(-maxPanY, Math.min(maxPanY, panY));
-            
-            updateImageTransform();
-
-            event.preventDefault(); // Prevent scrolling while dragging
-        }
-
         /**
          * NEW: Toggles fullscreen mode for the entire page.
          */
