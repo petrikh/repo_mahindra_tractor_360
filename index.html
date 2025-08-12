@@ -265,7 +265,7 @@
             pointer-events: auto; /* Re-enable clicks for the hotspot itself */
             transform: translate(-50%, -50%); /* Center the hotspot icon on the specified coordinates */
         }
-        .hotspot-2d img {
+        .hotspot-2d img, .hotspot-2d video {
             width: 100%;
             height: 100%;
             object-fit: contain;
@@ -493,6 +493,7 @@
         let mouse = new THREE.Vector2();
         let hotspotMeshes = [];
         let currentPopupOptionIndex = 0;
+        let activeHotspotVideo = null; // To track the currently playing hotspot video
         
         // New variables for image sequence animation
         let animationInterval = null;
@@ -1428,6 +1429,17 @@
                 bonnetSound.currentTime = 0;
             }
 
+            // Stop and reset the active hotspot video
+            if (activeHotspotVideo) {
+                activeHotspotVideo.style.display = 'none';
+                activeHotspotVideo.pause();
+                const siblingImg = activeHotspotVideo.parentElement.querySelector('img');
+                if (siblingImg) {
+                    siblingImg.style.display = 'block';
+                }
+                activeHotspotVideo = null;
+            }
+
             // Reset zoom and pan when the popup is closed
             zoomLevel = 1;
             panX = 0;
@@ -1453,6 +1465,18 @@
             // Stop any previous animation
             stopImageAnimation();
 
+            // Reset the active hotspot when changing images
+            if (activeHotspotVideo) {
+                activeHotspotVideo.style.display = 'none';
+                activeHotspotVideo.pause();
+                // Find the sibling image and show it
+                const siblingImg = activeHotspotVideo.parentElement.querySelector('img');
+                if (siblingImg) {
+                    siblingImg.style.display = 'block';
+                }
+                activeHotspotVideo = null;
+            }
+
             // Reset zoom and pan when a new image is loaded
             zoomLevel = 1;
             panX = 0;
@@ -1473,15 +1497,42 @@
                     hotspotElement.className = 'hotspot-2d';
                     hotspotElement.style.left = `${hotspotData.x}%`;
                     hotspotElement.style.top = `${hotspotData.y}%`;
-                    hotspotElement.title = hotspotData.label; // for hover tooltip
+                    hotspotElement.title = hotspotData.label;
                     
-                    // Create and append the image element for the hotspot
+                    // Create and append the static image for the hotspot
                     const hotspotImage = document.createElement('img');
                     hotspotImage.src = 'res/ui/hotspot_normal.png';
+                    hotspotImage.style.display = 'block';
                     hotspotElement.appendChild(hotspotImage);
 
+                    // Create and append the looping video for the hotspot
+                    const hotspotVideo = document.createElement('video');
+                    hotspotVideo.src = 'res/ui/hotspot_optionspopup.webm';
+                    hotspotVideo.loop = true;
+                    hotspotVideo.muted = true;
+                    hotspotVideo.playsInline = true;
+                    hotspotVideo.style.display = 'none'; // Hidden by default
+                    hotspotElement.appendChild(hotspotVideo);
+
                     hotspotElement.addEventListener('click', () => {
-                        // Play sound if one is associated with this hotspot
+                        // Stop any other playing hotspot video
+                        if (activeHotspotVideo && activeHotspotVideo !== hotspotVideo) {
+                            activeHotspotVideo.style.display = 'none';
+                            activeHotspotVideo.pause();
+                            const siblingImg = activeHotspotVideo.parentElement.querySelector('img');
+                            if (siblingImg) {
+                                siblingImg.style.display = 'block';
+                            }
+                        }
+
+                        // Play this hotspot's video
+                        hotspotImage.style.display = 'none';
+                        hotspotVideo.style.display = 'block';
+                        hotspotVideo.currentTime = 0;
+                        hotspotVideo.play();
+                        activeHotspotVideo = hotspotVideo;
+
+                        // --- Original click logic ---
                         if (hotspotData.soundUrl) {
                             if (hotspotData.soundUrl.includes('bonnet_clip.mp3')) {
                                 if (isSoundOn) {
@@ -1495,10 +1546,8 @@
                         if (hotspotData.type === "image_sequence" && hotspotData.sequenceImages) {
                             startImageAnimation(hotspotData.sequenceImages);
                         } else if (hotspotData.type === "image_sequence_with_path_change" && hotspotData.sequenceImages) {
-                            // This hotspot triggers the path change after animation
                             startImageAnimation(hotspotData.sequenceImages, () => {
-                                popupImagePath = hotspotData.next_path //newPopupImagePath;
-                                // Re-render the current popup image with the new path
+                                popupImagePath = hotspotData.next_path;
                                 updatePopupImage(currentPopupOptionIndex);
                             });
                         } else {
