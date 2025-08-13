@@ -532,6 +532,10 @@
         let popupCanvas, ctx;
         let transitionAnimationId = null;
 
+        // NEW: Variables for smooth slider scrubbing
+        let targetVideoTime = 0;
+        let scrubAnimationId = null;
+
 
         // HTML elements
         const landingPage = document.getElementById('landingPage');
@@ -812,7 +816,7 @@
             if (!isPopupDragging || event.touches.length !== 1 || zoomLevel === 1) return;
             const deltaX = event.touches[0].clientX - startPopupDragX;
             const deltaY = event.touches[0].clientY - startPopupDragY;
-            panX = startPanX + deltaX;
+            panX = startPanX + deltaY;
             panY = startPanY + deltaY;
             drawVideoFrame(); // Redraw canvas with new pan
             event.preventDefault();
@@ -889,9 +893,6 @@
                 video.addEventListener('ended', function() { this.play().catch(e => {}); });
             });
             updateSoundButton();
-            
-            // NEW: Add event listener for video seeking
-            popupVideo.addEventListener('seeked', drawVideoFrame);
         }
 
         /**
@@ -1065,22 +1066,33 @@
                 popupCanvas.width = popupVideo.videoWidth;
                 popupCanvas.height = popupVideo.videoHeight;
 
-                // Reset slider and draw first frame
+                // Reset slider
                 optionSlider.max = 100;
                 optionSlider.value = 0;
+                targetVideoTime = 0;
+
+                // Add a one-time event listener to draw the first frame once it's ready.
+                const drawFirstFrame = () => {
+                    drawVideoFrame();
+                    updateHotspotsForVideo(0);
+                    // Remove the listener so it doesn't fire again.
+                    popupVideo.removeEventListener('seeked', drawFirstFrame); 
+                };
+                popupVideo.addEventListener('seeked', drawFirstFrame);
+
+                // Set currentTime to 0 to trigger the seek.
                 popupVideo.currentTime = 0;
-                drawVideoFrame();
-                updateHotspotsForVideo(0);
 
                 // Show controls
                 optionSlider.style.display = 'block';
                 hotspot2DContainer.style.display = 'block';
                 
-                // Clean up listener
+                // Clean up the metadata listener
                 popupVideo.onloadedmetadata = null;
             };
 
-            if (popupVideo.readyState >= 1) {
+            // Wait for the video metadata to load before setting up the canvas and seeking.
+            if (popupVideo.readyState >= 1) { // readyState >= HAVE_METADATA
                 setupVideoAndCanvas();
             } else {
                 popupVideo.onloadedmetadata = setupVideoAndCanvas;
@@ -1103,6 +1115,11 @@
             if (transitionAnimationId) {
                 cancelAnimationFrame(transitionAnimationId);
                 transitionAnimationId = null;
+            }
+            // NEW: Cancel scrubbing animation
+            if (scrubAnimationId) {
+                cancelAnimationFrame(scrubAnimationId);
+                scrubAnimationId = null;
             }
             popupVideo.onended = null;
             popupVideo.onloadedmetadata = null;
@@ -1224,6 +1241,7 @@
                     popupCanvas.height = popupVideo.videoHeight;
                     optionSlider.value = 0;
                     popupVideo.currentTime = 0;
+                    targetVideoTime = 0; // NEW: Reset target time
                     drawVideoFrame();
                     
                     optionSlider.style.display = 'block';
@@ -1276,14 +1294,54 @@
         }
 
         /**
-         * Handles changes from the option slider to scrub the video.
+         * OPTIMIZED: Handles changes from the option slider to smoothly scrub the video.
          */
         function onSliderChange() {
             if (!popupVideo.duration || transitionAnimationId) return;
             const sliderValue = parseInt(optionSlider.value, 10);
-            popupVideo.currentTime = (sliderValue / 100) * popupVideo.duration;
+            // Set the target time for the animation loop
+            targetVideoTime = (sliderValue / 100) * popupVideo.duration;
             updateHotspotsForVideo(sliderValue);
-            // The 'seeked' event will trigger the drawVideoFrame function
+
+            // If an animation isn't already running, start one.
+            if (!scrubAnimationId) {
+                scrubAnimationId = requestAnimationFrame(animateScrub);
+            }
+        }
+
+        /**
+         * OPTIMIZED: Animation loop for smooth scrubbing.
+         * This version checks if the video is currently seeking and waits for it to finish
+         * before requesting the next frame, preventing stuttering.
+         */
+        function animateScrub() {
+            // If the video is busy seeking, wait for the next animation frame.
+            // This gives the video element time to catch up.
+            if (popupVideo.seeking) {
+                drawVideoFrame(); // Continue to draw the last available frame so it doesn't freeze.
+                scrubAnimationId = requestAnimationFrame(animateScrub);
+                return;
+            }
+
+            const timeDifference = targetVideoTime - popupVideo.currentTime;
+
+            // If we're very close to the target, do a final snap and stop the animation.
+            if (Math.abs(timeDifference) < 0.05) {
+                popupVideo.currentTime = targetVideoTime;
+                drawVideoFrame();
+                scrubAnimationId = null; // Stop the loop
+                return;
+            }
+
+            // Move currentTime towards the target with an easing factor.
+            // A larger factor makes the animation more responsive.
+            popupVideo.currentTime += timeDifference * 0.2;
+
+            // Draw the frame. The 'seeking' check at the top of the next loop will handle any latency.
+            drawVideoFrame();
+
+            // Continue the animation loop.
+            scrubAnimationId = requestAnimationFrame(animateScrub);
         }
         
         /**
@@ -1303,14 +1361,17 @@
             const sWidth = popupVideo.videoWidth / zoomLevel;
             const sHeight = popupVideo.videoHeight / zoomLevel;
             // Center the zoomed view and apply pan
-            const sx = (popupVideo.videoWidth - sWidth) / 2 - (panX / zoomLevel);
-            const sy = (popupVideo.videoHeight - sHeight) / 2 - (panY / zoomLevel);
+            let sx = (popupVideo.videoWidth - sWidth) / 2 - panX;
+            let sy = (popupVideo.videoHeight - sHeight) / 2 - panY;
 
-            // Prevent panning beyond the video boundaries
-            const maxPanX = (popupCanvas.width * (zoomLevel - 1)) / 2;
-            const maxPanY = (popupCanvas.height * (zoomLevel - 1)) / 2;
-            panX = Math.max(-maxPanX, Math.min(maxPanX, panX));
-            panY = Math.max(-maxPanY, Math.min(maxPanY, panY));
+            // Clamp pan values to prevent panning outside the video boundaries
+            const maxPanX = (popupVideo.videoWidth - sWidth) / 2;
+            const maxPanY = (popupVideo.videoHeight - sHeight) / 2;
+            sx = Math.max(0, Math.min(sx, popupVideo.videoWidth - sWidth));
+            sy = Math.max(0, Math.min(sy, popupVideo.videoHeight - sHeight));
+            panX = (popupVideo.videoWidth - sWidth) / 2 - sx;
+            panY = (popupVideo.videoHeight - sHeight) / 2 - sy;
+
 
             ctx.drawImage(
                 popupVideo, // source image
@@ -1359,7 +1420,7 @@
         function zoomIn360() {
             if (optionsPopup.style.display === 'flex') {
                 if (zoomLevel < maxZoom) {
-                    zoomLevel += 0.5;
+                    zoomLevel = Math.min(maxZoom, zoomLevel + 0.5);
                     drawVideoFrame();
                 }
             } else {
@@ -1374,7 +1435,7 @@
         function zoomOut360() {
             if (optionsPopup.style.display === 'flex') {
                 if (zoomLevel > minZoom) {
-                    zoomLevel -= 0.5;
+                    zoomLevel = Math.max(minZoom, zoomLevel - 0.5);
                     // Reset pan when zooming out completely
                     if (zoomLevel === 1) {
                         panX = 0;
