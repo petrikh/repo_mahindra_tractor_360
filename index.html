@@ -200,7 +200,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: #fff; /* Changed to white */
+            background-color: #000; /* FLICKER FIX: Changed from white to black */
             display: none; /* Hidden by default */
             justify-content: center;
             align-items: flex-end; /* Align content to the bottom */
@@ -307,7 +307,7 @@
             position: absolute;
             top: 100px;
             left: 310px;
-            width: 200px; /* Increased width for larger font */
+            width: 230px; /* Increased width for larger font */
             aspect-ratio: 735 / 463; /* IMPORTANT: Adjust this to match your info_box.png aspect ratio */
             background: url('res/ui/info_box.png') no-repeat center center;
             background-size: cover; /* Use 'cover' to fill the area without distorting the image */
@@ -329,6 +329,7 @@
             font-weight: 600; /* Semi-Bold. Use 700 for Bold */
             font-size: 18px;
             line-height: 1.4; /* Adjusted for larger font size */
+            white-space: pre-line; /* This will respect newline characters */
         }
 
         @keyframes fadeIn {
@@ -1266,7 +1267,8 @@
         }
         
         /**
-         * MODIFIED: Plays a transition video and sets up the next scrubbable video.
+         * FLICKER FIX: Plays a transition video, preloads the next video, 
+         * and then switches to it seamlessly.
          */
         function playTransitionVideo(hotspotData) {
             optionSlider.style.display = 'none';
@@ -1274,48 +1276,59 @@
 
             if (hotspotData.soundUrl) playSound(hotspotData.soundUrl);
 
+            // 1. Play the transition video on the main video element
             popupVideo.loop = false;
             popupVideo.src = hotspotData.transitionVideo;
             popupVideo.muted = !isSoundOn;
             popupVideo.play();
             
-            // Start animation loop to draw frames on canvas
+            // 2. Start animation loop to draw the transition video frames on the canvas
             const animateTransition = () => {
                 drawVideoFrame();
                 transitionAnimationId = requestAnimationFrame(animateTransition);
             };
             animateTransition();
 
+            // 3. When the transition video ends...
             popupVideo.onended = () => {
-                // Stop the animation loop
+                // Stop the animation loop for the transition video
                 if (transitionAnimationId) {
                     cancelAnimationFrame(transitionAnimationId);
                     transitionAnimationId = null;
                 }
 
-                // Switch to the new scrubbable video
-                currentScrubbableVideo = hotspotData.nextScrubbableVideo;
-                popupVideo.src = currentScrubbableVideo;
+                // 4. Preload the *next* scrubbable video in a temporary, hidden video element
+                const preloader = document.createElement('video');
+                preloader.src = hotspotData.nextScrubbableVideo;
                 
-                const setupNewScrubbableVideo = () => {
-                    popupCanvas.width = popupVideo.videoWidth;
-                    popupCanvas.height = popupVideo.videoHeight;
+                // 5. When the preloader has enough data to play...
+                preloader.onloadeddata = () => {
+                    // 6. NOW, switch the main video element's source. It's already cached.
+                    currentScrubbableVideo = hotspotData.nextScrubbableVideo;
+                    popupVideo.src = currentScrubbableVideo;
                     
-                    popupVideo.currentTime = 0;
-                    updateHotspotsForVideo(0);
+                    // 7. Setup the new video for scrubbing
+                    const setupNewScrubbableVideo = () => {
+                        popupCanvas.width = popupVideo.videoWidth;
+                        popupCanvas.height = popupVideo.videoHeight;
+                        
+                        popupVideo.currentTime = 0; // This will trigger 'seeked' event
+                        updateHotspotsForVideo(0);
 
-                    hotspot2DContainer.style.display = 'block';
+                        hotspot2DContainer.style.display = 'block';
+                        
+                        popupVideo.onloadedmetadata = null;
+                    };
+
+                    // Check if metadata is ready, otherwise wait for it
+                    if (popupVideo.readyState >= 1) {
+                        setupNewScrubbableVideo();
+                    } else {
+                        popupVideo.onloadedmetadata = setupNewScrubbableVideo;
+                    }
                     
-                    popupVideo.onloadedmetadata = null;
+                    popupVideo.onended = null; // Clean up the onended listener
                 };
-
-                if (popupVideo.readyState >= 1) {
-                    setupNewScrubbableVideo();
-                } else {
-                    popupVideo.onloadedmetadata = setupNewScrubbableVideo;
-                }
-                
-                popupVideo.onended = null;
             };
         }
 
@@ -1369,7 +1382,8 @@
                 return;
             }
             
-            ctx.fillStyle = '#fff';
+            // FLICKER FIX: Set fillStyle to black to match the new background
+            ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, popupCanvas.width, popupCanvas.height);
 
             const sWidth = popupVideo.videoWidth / zoomLevel;
