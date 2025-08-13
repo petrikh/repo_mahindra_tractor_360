@@ -75,7 +75,6 @@
         }
 
         #startButton:hover {
-            /* background-color on hover removed so it doesn't cover the image */
             transform: scale(1.05);
             box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
         }
@@ -223,10 +222,11 @@
             cursor: grabbing;
         }
 
-        #popupImage {
+        /* UPDATED: Style for the new video element */
+        #popupVideo {
             width: 100%;
             height: auto;
-            user-select: none; /* Prevent image from being selected while dragging */
+            user-select: none; /* Prevent video from being selected while dragging */
             transition: transform 0.3s ease; /* Smooth zoom transition */
         }
 
@@ -454,7 +454,8 @@
 
     <div id="optionsPopup">
         <div id="popupContent">
-            <img id="popupImage" src="" alt="Popup Image">
+            <!-- UPDATED: Replaced img with video -->
+            <video id="popupVideo" src="res/3D/bonnet_close.webm" muted playsinline></video>
             
             <div id="hotspot2DContainer"></div>
 
@@ -465,7 +466,7 @@
             <button id="closePopupBtn"></button>
 
             <div id="popupControls">
-                <input type="range" id="optionSlider" class="option-slider" value="0" min="0">
+                <input type="range" id="optionSlider" class="option-slider" value="0" min="0" max="100">
             </div>
         </div>
     </div>
@@ -492,23 +493,15 @@
         let raycaster = new THREE.Raycaster();
         let mouse = new THREE.Vector2();
         let hotspotMeshes = [];
-        let currentPopupOptionIndex = 0;
         let activeHotspotVideo = null; // To track the currently playing hotspot video
         
-        // New variables for image sequence animation
-        let animationInterval = null;
-        let isAnimating = false;
-        let animationImageIndex = 0;
-        let animationImages = [];
-
         // New video texture for 3D hotspots
         let hotspotVideoTexture = null;
         
-        // New variables for popup image dragging
+        // Variables for popup content dragging (for panning when zoomed)
         let isPopupDragging = false;
         let startPopupDragX = 0;
-        let startPopupDragY = 0; // Added for vertical pan
-        const dragThreshold = 50; // pixels to trigger an image change
+        let startPopupDragY = 0;
 
         // Variables for zooming and panning
         let zoomLevel = 1;
@@ -525,6 +518,9 @@
 
         // New timer for the auto-hiding text info box
         let textInfoTimer = null;
+        
+        // NEW: Variable to track the current scrubbable video
+        let currentScrubbableVideo = 'res/3D/bonnet_close.webm';
 
         // HTML elements
         const landingPage = document.getElementById('landingPage');
@@ -534,7 +530,7 @@
         const closeVideoBtn = document.getElementById('closeVideoBtn');
         const optionsPopup = document.getElementById('optionsPopup');
         const popupContent = document.getElementById('popupContent');
-        const popupImage = document.getElementById('popupImage');
+        const popupVideo = document.getElementById('popupVideo'); // UPDATED: Get video element
         const closePopupBtn = document.getElementById('closePopupBtn');
         const hotspot2DContainer = document.getElementById('hotspot2DContainer');
         const textInfoBox = document.getElementById('textInfoBox');
@@ -557,280 +553,57 @@
         const panorama2ImageUrl = "res/nav/2.png";
         const panorama3ImageUrl = "res/nav/3.png";
 
-        // New variable for the base path of the main popup images
-        let popupImagePath = "res/3D/bonnet_close/";
-        let newPopupImagePath = "res/3D/bonnet_open_360/"; // A new path to switch to
-
         // Data for the popup options, including new 2D hotspots
-        // Note: The imageUrl is now just a filename or relative path.
+        // This data is now used to source hotspots at different video times
         const popupOptions = [
-            {
+            { // Index 0 (Video 0-10%)
                 imageUrl: "1.jpg",
                 hotspots2D: [
-                    {
-                      x: 32,
-                      y: 92,
-                      label: "A", // Hotspot for the image sequence
-                      type: "text_info",
-                      text:"Turning Radius\n2.3 Mtrs"
-                    },
-                    {
-                        x: 51.5,
-                        y: 60,
-                        label: "B",
-                        type: "text_info",
-                        text: "Battery\n88 Amp x 12 volt" 
-                    },
-                    {
-                        x: 39,
-                        y: 43,
-                        label: "C",
-                        type: "text_info",
-                        text: "Headlamps\nTrapezoidal Clear\nLense" 
-                    }
+                    { x: 32, y: 92, label: "A", type: "text_info", text:"Turning Radius\n2.3 Mtrs" },
+                    { x: 51.5, y: 60, label: "B", type: "text_info", text: "Battery\n88 Amp x 12 volt" },
+                    { x: 39, y: 43, label: "C", type: "text_info", text: "Headlamps\nTrapezoidal Clear\nLense" }
                 ]
             },
-            {
-                imageUrl: "2.jpg",
-                
-            },
-            {
-                imageUrl: "3.jpg",
-                
-            },
-            {
-                imageUrl: "4.jpg",
-                
-            },
-            {
-                imageUrl: "5.jpg",
-            },
-            {
+            { imageUrl: "2.jpg" }, // Index 1
+            { imageUrl: "3.jpg" }, // Index 2
+            { imageUrl: "4.jpg" }, // Index 3
+            { imageUrl: "5.jpg" }, // Index 4
+            { // Index 5 (Video 20-30%)
                 imageUrl: "6.jpg",
                 hotspots2D: [
                     {
-                      x: 70,
-                      y: 31,
-                      label: "A", // Hotspot for the image sequence
-                      type: "image_sequence_with_path_change",
-                      next_path: "res/3D/bonnet_open_360/",
+                      x: 70, y: 31, label: "A", type: "image_sequence_with_path_change", 
                       soundUrl: "res/ui/bonnet_clip.mp3",
-                      sequenceImages: [
-                          "res/3D/bonnet_open/1.jpg",
-                          "res/3D/bonnet_open/2.jpg",
-                          "res/3D/bonnet_open/3.jpg",
-                          "res/3D/bonnet_open/4.jpg",
-                          "res/3D/bonnet_open/5.jpg",
-                          "res/3D/bonnet_open/6.jpg",
-                          "res/3D/bonnet_open/7.jpg",
-                          "res/3D/bonnet_open/8.jpg",
-                          "res/3D/bonnet_open/9.jpg",
-                          "res/3D/bonnet_open/10.jpg",
-                          "res/3D/bonnet_open/11.jpg",
-                          "res/3D/bonnet_open/12.jpg",
-                          "res/3D/bonnet_open/13.jpg",
-                          "res/3D/bonnet_open/14.jpg",
-                          "res/3D/bonnet_open/15.jpg",
-                          "res/3D/bonnet_open/16.jpg",
-                          "res/3D/bonnet_open/17.jpg",
-                          "res/3D/bonnet_open/18.jpg",
-                          "res/3D/bonnet_open/19.jpg",
-                          "res/3D/bonnet_open/20.jpg",
-                          "res/3D/bonnet_open/21.jpg",
-                      ]
+                      transitionVideo: "res/3D/bonnet_open.webm", // The video to play once
+                      nextScrubbableVideo: "res/3D/bonnet_open_360.webm" // The new video to scrub through
                     },
-                    // {
-                    //   x: 60,
-                    //   y: 30,
-                    //   label: "B",
-                    //   type: "image_sequence_with_path_change", 
-                    //   next_path: "res/3D/bonnet_close/",
-                    //   sequenceImages: [
-                    //       "res/3D/bonnet_open/7.png",
-                    //       "res/3D/bonnet_open/6.png",
-                    //       "res/3D/bonnet_open/5.png",
-                    //       "res/3D/bonnet_open/4.png",
-                    //       "res/3D/bonnet_open/3.png",
-                    //       "res/3D/bonnet_open/2.png",
-                    //       "res/3D/bonnet_open/1.png"
-                    //   ]
-                    // },
-                    {
-                        x: 79,
-                        y: 62,
-                        label: "C",
-                        type: "text_info",
-                        text: "Front Tyre Size\n7.15 x 16" 
-                    },
-                    {
-                        x: 45,
-                        y: 65,
-                        label: "D",
-                        type: "text_info",
-                        text: "PCM\nTransmission" 
-                    },
-                    {
-                        x: 28,
-                        y: 55,
-                        label: "E",
-                        type: "text_info",
-                        text: "Rear Tyre Size\n14.9 x 28" 
-                    },
-
+                    { x: 79, y: 62, label: "C", type: "text_info", text: "Front Tyre Size\n7.15 x 16" },
+                    { x: 45, y: 65, label: "D", type: "text_info", text: "PCM\nTransmission" },
+                    { x: 28, y: 55, label: "E", type: "text_info", text: "Rear Tyre Size\n14.9 x 28" },
                 ]
             },
-            {
-                imageUrl: "7.jpg",
-            },
-            {
-                imageUrl: "8.jpg",
-            },
-            {
+            { imageUrl: "7.jpg" }, // Index 6
+            { imageUrl: "8.jpg" }, // Index 7
+            { // Index 8 (Video 50-60%)
                 imageUrl: "9.jpg",
                 hotspots2D: [
-                    {
-                      x: 62,
-                      y: 25,
-                      label: "A", // Hotspot for the image sequence
-                      type: "text_info",
-                      text:"Wet Type\nAir Filter"
-                    },
-                    {
-                        x: 56,
-                        y: 61,
-                        label: "B",
-                        type: "text_info",
-                        text: "Dual\nClutch" 
-                    },
-                    {
-                        x: 75,
-                        y: 75,
-                        label: "C",
-                        type: "text_info",
-                        text: "Oil\nImmersed\nBrakes" 
-                    }
+                    { x: 62, y: 25, label: "A", type: "text_info", text:"Wet Type\nAir Filter" },
+                    { x: 56, y: 61, label: "B", type: "text_info", text: "Dual\nClutch" },
+                    { x: 75, y: 75, label: "C", type: "text_info", text: "Oil\nImmersed\nBrakes" }
                 ]
             },
-            {
-                imageUrl: "10.jpg",
-            },
-            {
-                imageUrl: "11.jpg",
-            },
-            {
-                imageUrl: "12.jpg",
-            },
-            {
-                imageUrl: "13.jpg",
-            },
-            {
-                imageUrl: "14.jpg",
-                hotspots2D: [
-                    {
-                      x: 58,
-                      y: 52,
-                      label: "A", // Hotspot for the image sequence
-                      type: "text_info",
-                      text:"Engine CC\n2979"
-                    },
-                    {
-                        x: 59,
-                        y: 71,
-                        label: "B",
-                        type: "text_info",
-                        text: "PTO\nHP 44.9" 
-                    },
-                    {
-                        x: 53,
-                        y: 62,
-                        label: "C",
-                        type: "text_info",
-                        text: "Hydraulic\nLift Capacity\n2000 KG" 
-                    }
-                ]
-            },
-            {
-                imageUrl: "15.jpg",
-            },
-            {
-                imageUrl: "16.jpg",
-            },
-            {
-                imageUrl: "17.jpg",
-            },
-            {
-                imageUrl: "18.jpg",
-            },
-            {
-                imageUrl: "19.jpg",
-            },
-            {
-                imageUrl: "20.jpg",
-            },
-            {
-                imageUrl: "21.jpg",
-            }
+            // ... The rest of the array items are kept for potential future use but are not currently mapped to the video
+            { imageUrl: "10.jpg" }, { imageUrl: "11.jpg" }, { imageUrl: "12.jpg" },
+            { imageUrl: "13.jpg" }, { imageUrl: "14.jpg" }, { imageUrl: "15.jpg" },
+            { imageUrl: "16.jpg" }, { imageUrl: "17.jpg" }, { imageUrl: "18.jpg" },
+            { imageUrl: "19.jpg" }, { imageUrl: "20.jpg" }, { imageUrl: "21.jpg" }
         ];
 
         // Data structure for panoramic images and their hotspots
         const panoData = [
-            {
-                name: "Panorama 1",
-                imageUrl: panorama1ImageUrl,
-                hotspots: [
-                    {
-                        id: "nextPanoArrow1",
-                        position: new THREE.Vector3(80, -20, 0),
-                        rotation: new THREE.Vector3(0, Math.PI / 2, 0),
-                        type: "arrow",
-                        targetPanoIndex: 1, // To Panorama 2
-                        label: "Next"
-                    }
-                ]
-            },
-            {
-                name: "Panorama 2",
-                imageUrl: panorama2ImageUrl,
-                hotspots: [
-                    {
-                        id: "nextPanoArrow2",
-                        position: new THREE.Vector3(80, -20, 0),
-                        rotation: new THREE.Vector3(0, Math.PI / 2, 0),
-                        type: "arrow",
-                        targetPanoIndex: 2, // To Panorama 3
-                        label: "Next"
-                    },
-                    {
-                        id: "backPanoArrow2",
-                        position: new THREE.Vector3(-80, -20, 0),
-                        rotation: new THREE.Vector3(0, -Math.PI / 2, 0),
-                        type: "arrow",
-                        targetPanoIndex: 0, // Back to Panorama 1
-                        label: "Back"
-                    }
-                ]
-            },
-            // A single panorama for Pano 3, with a popup hotspot
-            {
-                name: "Panorama 3", // Index 2
-                imageUrl: panorama3ImageUrl,
-                hotspots: [
-                    {
-                        id: "popupHotspot3D",
-                        position: new THREE.Vector3(80, -25,0),
-                        type: "popup", // New type to trigger the popup
-                        label: "Explore Tractor"
-                    },
-                    {
-                        id: "backPanoArrow",
-                        position: new THREE.Vector3(-80, -20, 0),
-                        rotation: new THREE.Vector3(0, -Math.PI / 2, 0), // Corrected rotation to face left
-                        type: "arrow",
-                        targetPanoIndex: 1, // Back to Panorama 2
-                        label: "Back"
-                    }
-                ]
-            }
+            { name: "Panorama 1", imageUrl: panorama1ImageUrl, hotspots: [{ id: "nextPanoArrow1", position: new THREE.Vector3(80, -20, 0), rotation: new THREE.Vector3(0, Math.PI / 2, 0), type: "arrow", targetPanoIndex: 1, label: "Next" }] },
+            { name: "Panorama 2", imageUrl: panorama2ImageUrl, hotspots: [{ id: "nextPanoArrow2", position: new THREE.Vector3(80, -20, 0), rotation: new THREE.Vector3(0, Math.PI / 2, 0), type: "arrow", targetPanoIndex: 2, label: "Next" }, { id: "backPanoArrow2", position: new THREE.Vector3(-80, -20, 0), rotation: new THREE.Vector3(0, -Math.PI / 2, 0), type: "arrow", targetPanoIndex: 0, label: "Back" }] },
+            { name: "Panorama 3", imageUrl: panorama3ImageUrl, hotspots: [{ id: "popupHotspot3D", position: new THREE.Vector3(80, -25,0), type: "popup", label: "Explore Tractor" }, { id: "backPanoArrow", position: new THREE.Vector3(-80, -20, 0), rotation: new THREE.Vector3(0, -Math.PI / 2, 0), type: "arrow", targetPanoIndex: 1, label: "Back" }] }
         ];
 
         
@@ -879,33 +652,22 @@
          * Handles clicks on the canvas for hotspot interaction.
          */
         function onCanvasClick(event) {
-            // Don't trigger hotspots if a popup is visible
-            if (optionsPopup.style.display === 'flex' || videoOverlay.style.display === 'flex') {
-                return;
-            }
-
+            if (optionsPopup.style.display === 'flex' || videoOverlay.style.display === 'flex') return;
             mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
             mouse.y = - (event.clientY / renderer.domElement.clientHeight) * 2 + 1;
             raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(hotspotMeshes, true); // Recursive check
+            const intersects = raycaster.intersectObjects(hotspotMeshes, true);
             if (intersects.length > 0) {
                 let clickedHotspot = intersects[0].object;
-
-                // Traverse up the hierarchy to find the parent group that is in hotspotMeshes
                 while (clickedHotspot.parent && hotspotMeshes.indexOf(clickedHotspot) === -1) {
                     clickedHotspot = clickedHotspot.parent;
                 }
-
                 const hotspotData = clickedHotspot.userData;
-
                 if (hotspotData && hotspotData.type === "arrow" && hotspotData.targetPanoIndex !== undefined) {
-                    // This is a navigation hotspot, load the new panorama
                     loadPanoramicImage(panoData[hotspotData.targetPanoIndex].imageUrl, hotspotData.targetPanoIndex);
                 } else if (hotspotData && hotspotData.type === "video" && hotspotData.videoUrl) {
-                    // This is a video hotspot
                     showVideo(hotspotData.videoUrl);
                 } else if (hotspotData && hotspotData.type === "popup") {
-                    // New popup hotspot
                     showOptionsPopup();
                 }
             }
@@ -915,9 +677,7 @@
          * Handles the touch start event.
          */
         function onTouchStart(event) {
-            if (optionsPopup.style.display === 'flex' || videoOverlay.style.display === 'flex') {
-                return;
-            }
+            if (optionsPopup.style.display === 'flex' || videoOverlay.style.display === 'flex') return;
             if (event.touches.length === 1) {
                 isDragging = true;
                 previousMousePosition.x = event.touches[0].clientX;
@@ -929,17 +689,10 @@
          * Handles the touch end event.
          */
         function onTouchEnd(event) {
-            if (optionsPopup.style.display === 'flex' || videoOverlay.style.display === 'flex') {
-                return;
-            }
+            if (optionsPopup.style.display === 'flex' || videoOverlay.style.display === 'flex') return;
             isDragging = false;
             if (event.changedTouches.length > 0) {
-                const touch = event.changedTouches[0];
-                const simulatedMouseEvent = {
-                    clientX: touch.clientX,
-                    clientY: touch.clientY,
-                };
-                onCanvasClick(simulatedMouseEvent);
+                onCanvasClick({ clientX: event.changedTouches[0].clientX, clientY: event.changedTouches[0].clientY });
             }
         }
 
@@ -947,9 +700,7 @@
          * Handles the touch move event.
          */
         function onTouchMove(event) {
-            if (optionsPopup.style.display === 'flex' || videoOverlay.style.display === 'flex') {
-                return;
-            }
+            if (optionsPopup.style.display === 'flex' || videoOverlay.style.display === 'flex') return;
             if (!isDragging || event.touches.length !== 1) return;
             const deltaX = event.touches[0].clientX - previousMousePosition.x;
             const horizontalRotationSpeed = 0.005;
@@ -962,68 +713,44 @@
         }
         
         /**
-         * Handles the mouse down event for dragging the popup image.
+         * Handles the mouse down event for dragging/panning the popup video.
          */
         function onPopupMouseDown(event) {
-            // Prevent dragging if the user clicks on a hotspot
             if (event.target.classList.contains('hotspot-2d') || event.target.id === 'optionSlider') return;
-
             isPopupDragging = true;
             startPopupDragX = event.clientX;
             startPopupDragY = event.clientY;
-            startPanX = panX; // Store current pan position
+            startPanX = panX;
             startPanY = panY;
             popupContent.classList.add('dragging');
         }
 
         /**
-         * Handles the mouse up event for the popup image.
+         * Handles the mouse up event for the popup video.
          */
         function onPopupMouseUp(event) {
-            if (!isPopupDragging) return;
-
-            const deltaX = event.clientX - startPopupDragX;
-            const deltaY = event.clientY - startPopupDragY;
-
-            // Only switch images if not zoomed in and the drag distance is sufficient
-            if (zoomLevel === 1 && Math.abs(deltaX) > dragThreshold) {
-                if (deltaX > 0) {
-                    currentPopupOptionIndex = (currentPopupOptionIndex - 1 + popupOptions.length) % popupOptions.length;
-                } else {
-                    currentPopupOptionIndex = (currentPopupOptionIndex + 1) % popupOptions.length;
-                }
-                updatePopupImage(currentPopupOptionIndex);
-            }
-
             isPopupDragging = false;
             popupContent.classList.remove('dragging');
         }
         
         /**
-         * Handles the mouse move event for dragging the popup image.
+         * Handles the mouse move event for panning the popup video when zoomed.
          */
         function onPopupMouseMove(event) {
-            if (!isPopupDragging || isAnimating || zoomLevel === 1) return;
-
+            if (!isPopupDragging || zoomLevel === 1) return;
             const deltaX = event.clientX - startPopupDragX;
             const deltaY = event.clientY - startPopupDragY;
-
-            // Panning logic, only if zoomed in
             panX = startPanX + deltaX;
             panY = startPanY + deltaY;
-
-            // Add boundary checks to prevent panning too far
-            const maxPanX = (popupImage.offsetWidth * (zoomLevel - 1)) / 2;
-            const maxPanY = (popupImage.offsetHeight * (zoomLevel - 1)) / 2;
-
+            const maxPanX = (popupVideo.offsetWidth * (zoomLevel - 1)) / 2;
+            const maxPanY = (popupVideo.offsetHeight * (zoomLevel - 1)) / 2;
             panX = Math.max(-maxPanX, Math.min(maxPanX, panX));
             panY = Math.max(-maxPanY, Math.min(maxPanY, panY));
-            
-            updateImageTransform();
+            updateVideoTransform();
         }
         
         /**
-         * Handles the touch start event for the popup image.
+         * Handles the touch start event for the popup video.
          */
         function onPopupTouchStart(event) {
             if (event.touches.length === 1 && !event.target.classList.contains('hotspot-2d') && event.target.id !== 'optionSlider') {
@@ -1036,121 +763,76 @@
         }
         
         /**
-         * Handles the touch end event for the popup image.
+         * Handles the touch end event for the popup video.
          */
         function onPopupTouchEnd(event) {
-            if (!isPopupDragging) return;
-            const touch = event.changedTouches[0];
-            const deltaX = touch.clientX - startPopupDragX;
-            const deltaY = touch.clientY - startPopupDragY;
-
-            if (zoomLevel === 1 && Math.abs(deltaX) > dragThreshold) {
-                if (deltaX > 0) {
-                    currentPopupOptionIndex = (currentPopupOptionIndex - 1 + popupOptions.length) % popupOptions.length;
-                } else {
-                    currentPopupOptionIndex = (currentPopupOptionIndex + 1) % popupOptions.length;
-                }
-                updatePopupImage(currentPopupOptionIndex);
-            }
-
             isPopupDragging = false;
         }
 
         /**
-         * Handles the touch move event for the popup image.
+         * Handles the touch move event for the popup video.
          */
         function onPopupTouchMove(event) {
-            if (!isPopupDragging || event.touches.length !== 1 || isAnimating || zoomLevel === 1) return;
-            
+            if (!isPopupDragging || event.touches.length !== 1 || zoomLevel === 1) return;
             const deltaX = event.touches[0].clientX - startPopupDragX;
             const deltaY = event.touches[0].clientY - startPopupDragY;
-
-            // Panning logic, only if zoomed in
             panX = startPanX + deltaX;
             panY = startPanY + deltaY;
-            
-            const maxPanX = (popupImage.offsetWidth * (zoomLevel - 1)) / 2;
-            const maxPanY = (popupImage.offsetHeight * (zoomLevel - 1)) / 2;
-            
+            const maxPanX = (popupVideo.offsetWidth * (zoomLevel - 1)) / 2;
+            const maxPanY = (popupVideo.offsetHeight * (zoomLevel - 1)) / 2;
             panX = Math.max(-maxPanX, Math.min(maxPanX, panX));
             panY = Math.max(-maxPanY, Math.min(maxPanY, panY));
-            
-            updateImageTransform();
-
-            event.preventDefault(); // Prevent scrolling while dragging
+            updateVideoTransform();
+            event.preventDefault();
         }
 
         /**
          * Initializes the 360-degree image viewer.
-         * Sets up the scene, camera, renderer, and loads the initial panoramic image onto a sphere.
          */
         function init() {
-            // Create a video element in memory to be used as a texture for hotspots
             const hotspotVideo = document.createElement('video');
-            hotspotVideo.src = 'res/ui/hotspot.webm'; // The video for the hotspot
+            hotspotVideo.src = 'res/ui/hotspot.webm';
             hotspotVideo.loop = true;
             hotspotVideo.muted = !isSoundOn;
             hotspotVideo.playsInline = true;
-            hotspotVideo.play(); // Start playing the video
-
-            // Create a texture from the video
+            hotspotVideo.play();
             hotspotVideoTexture = new THREE.VideoTexture(hotspotVideo);
             
-            // Initialize the looping sound for the bonnet
             bonnetSound = new Audio('res/ui/bonnet_clip.mp3');
             bonnetSound.loop = true;
 
-
-            // 1. Scene setup
             scene = new THREE.Scene();
-
-            // 2. Camera setup
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.set(0, 0, 0);
-            // Set initial camera rotation to face the default panorama view
             camera.rotation.y = -Math.PI / 2;
 
-            // 3. Renderer setup
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
-            renderer.domElement.style.display = 'block'; // Show the canvas
+            renderer.domElement.style.display = 'block';
 
-            console.log("Max Texture Size supported by GPU:", renderer.capabilities.maxTextureSize);
-
-            // 4. Create initial sphere geometry
             const geometry = new THREE.SphereGeometry(100, 60, 40);
             material = new THREE.MeshBasicMaterial({ side: THREE.BackSide });
             sphere = new THREE.Mesh(geometry, material);
             scene.add(sphere);
 
-            // Load the first panoramic image
             loadPanoramicImage(panoData[0].imageUrl, 0);
 
-            // 5. Add event listeners for mouse interaction (desktop)
             renderer.domElement.addEventListener('mousedown', onMouseDown);
             renderer.domElement.addEventListener('mouseup', onMouseUp);
             renderer.domElement.addEventListener('mousemove', onMouseMove);
             renderer.domElement.addEventListener('click', onCanvasClick);
             renderer.domElement.addEventListener('wheel', onMouseWheel);
-
-            // 6. Add event listeners for touch interaction (mobile)
             renderer.domElement.addEventListener('touchstart', onTouchStart);
             renderer.domElement.addEventListener('touchend', onTouchEnd);
             renderer.domElement.addEventListener('touchmove', onTouchMove);
 
-            // 7. Handle window resizing
             window.addEventListener('resize', onWindowResize, false);
-
-            // 8. Add event listener for close video button
             closeVideoBtn.addEventListener('click', hideVideo);
-
-            // 9. Add event listeners for new popup
             closePopupBtn.addEventListener('click', hideOptionsPopup);
-            optionSlider.addEventListener('input', onSliderChange); // SLIDER event listener
+            optionSlider.addEventListener('input', onSliderChange);
             
-            // New event listeners for popup drag functionality
             popupContent.addEventListener('mousedown', onPopupMouseDown);
             popupContent.addEventListener('mouseup', onPopupMouseUp);
             popupContent.addEventListener('mousemove', onPopupMouseMove);
@@ -1159,26 +841,17 @@
             popupContent.addEventListener('touchend', onPopupTouchEnd);
             popupContent.addEventListener('touchmove', onPopupTouchMove);
 
-            // 11. Add event listener for instruction popup close button
             closeInstructionBtn.addEventListener('click', hideInstructionPopup);
             
-            // 12. Add event listeners for new vertical toolbar
             fullscreenBtn.addEventListener('click', toggleFullScreen);
             zoomIn360Btn.addEventListener('click', zoomIn360);
             zoomOut360Btn.addEventListener('click', zoomOut360);
             soundBtn.addEventListener('click', toggleSound);
 
-            // 13. Ensure UI videos loop correctly
-            // The `loop` attribute should work, but this is a robust fallback.
             document.querySelectorAll('#static360Icon video').forEach(video => {
-                video.addEventListener('ended', function() {
-                    this.currentTime = 0;
-                    this.play().catch(e => {
-                        console.warn("Could not restart video loop:", e);
-                    });
-                });
+                video.addEventListener('ended', function() { this.play().catch(e => {}); });
             });
-            updateSoundButton(); // Set initial sound button image
+            updateSoundButton();
         }
 
         /**
@@ -1192,28 +865,22 @@
 
         /**
          * Loads a new panoramic image and applies it to the sphere, and updates hotspots.
-         * @param {string} imageUrl - The URL of the panoramic image to load.
-         * @param {number} panoIndex - The index of the current panorama in panoData.
          */
         function loadPanoramicImage(imageUrl, panoIndex) {
-            // Clear existing hotspots
             hotspotMeshes.forEach(mesh => scene.remove(mesh));
             hotspotMeshes = [];
-
             new THREE.TextureLoader().load(imageUrl, (texture) => {
                 texture.wrapS = THREE.RepeatWrapping;
                 texture.repeat.x = -1;
                 material.map = texture;
                 material.needsUpdate = true;
-
                 const currentPano = panoData[panoIndex];
                 if (currentPano && currentPano.hotspots) {
                     currentPano.hotspots.forEach(createHotspot);
                 }},
                 undefined,
-                function (error) {
+                (error) => {
                     console.error('An error occurred loading the texture:', error);
-                    // Fallback to a plain color if the texture fails to load
                     material.map = null;
                     material.color.setHex(0x1a1a1a);
                     material.needsUpdate = true;
@@ -1223,60 +890,38 @@
 
         /**
          * Creates a canvas element with text drawn on it.
-         * @param {string} text - The text to draw.
-         * @param {object} opts - Options for styling.
-         * @returns {HTMLCanvasElement}
          */
         function createTextCanvas(text, opts) {
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
             const font = `${opts.fontSize || 24}px ${opts.fontFace || 'Arial'}`;
             context.font = font;
-            
             const metrics = context.measureText(text);
-            const textWidth = metrics.width;
-            
-            canvas.width = textWidth;
+            canvas.width = metrics.width;
             canvas.height = opts.fontSize || 24;
-            
-            context.font = font; // Re-apply font after resize
+            context.font = font;
             context.fillStyle = opts.color || 'black';
-            context.fillText(text, 0, (opts.fontSize || 24) * 0.85); // Adjust vertical alignment
+            context.fillText(text, 0, (opts.fontSize || 24) * 0.85);
             return canvas;
         }
 
         /**
          * Creates a 3D hotspot mesh and adds it to the scene.
-         * @param {object} hotspotData - An object containing hotspot details.
          */
         function createHotspot(hotspotData) {
-            let hotspotObject; // This will be the main 3D object for the hotspot.
-            
-            // If the hotspot is an arrow, create a plane with a looping video texture.
+            let hotspotObject;
             if (hotspotData.type === "arrow") {
-                // 1. Create a video element in memory for the arrow animation.
                 const arrowVideo = document.createElement('video');
-                arrowVideo.src = 'res/ui/nav_arrow.webm'; // Use the webm video file.
+                arrowVideo.src = 'res/ui/nav_arrow.webm';
                 arrowVideo.loop = true;
-                arrowVideo.muted = true; // Mute to allow autoplay on most browsers.
+                arrowVideo.muted = true;
                 arrowVideo.playsInline = true;
                 arrowVideo.play().catch(e => console.error("Autoplay failed for arrow video", e));
-
-                // 2. Create a Three.js texture from the video element.
                 const arrowVideoTexture = new THREE.VideoTexture(arrowVideo);
-
-                // 3. Create the geometry (a flat plane) and material for the hotspot.
-                const hotspotGeometry = new THREE.PlaneGeometry(15, 10); // Adjust size as needed.
-                const hotspotMaterial = new THREE.MeshBasicMaterial({
-                    map: arrowVideoTexture,
-                    transparent: true,
-                    side: THREE.DoubleSide,
-                });
-
+                const hotspotGeometry = new THREE.PlaneGeometry(15, 10);
+                const hotspotMaterial = new THREE.MeshBasicMaterial({ map: arrowVideoTexture, transparent: true, side: THREE.DoubleSide });
                 hotspotMaterial.onBeforeCompile = (shader) => {
-                    shader.fragmentShader = shader.fragmentShader.replace(
-                        '#include <map_fragment>',
-                        `
+                    shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
                         #ifdef USE_MAP
                             vec4 texelColor = texture2D( map, vUv );
                             texelColor = mapTexelToLinear( texelColor );
@@ -1284,55 +929,33 @@
                             if (luma < 0.2) discard;
                             diffuseColor *= texelColor;
                         #endif
-                        `
-                    );
+                    `);
                 };
-
-                // 4. Create the final mesh object.
                 hotspotObject = new THREE.Mesh(hotspotGeometry, hotspotMaterial);
-                
-                // 5. Apply rotation if specified in the data.
                 if (hotspotData.rotation) {
-                    // This is the corrected rotation logic.
-                    // First, rotate the plane to be horizontal (on the XZ plane).
-                    // Then, apply the directional rotation from the data.
                     hotspotObject.rotation.set(Math.PI / 2, 0, hotspotData.rotation.z);
                 }
-            } else { // For other hotspot types (like 'popup'), use the original sprite with video.
-                const spriteMaterial = new THREE.SpriteMaterial({ 
-                    map: hotspotVideoTexture, // Use the pre-loaded hotspot video.
-                    transparent: true,
-                    blending: THREE.AdditiveBlending, // Good for glow effects.
-                    depthWrite: false // Helps with transparency rendering.
-                });
+            } else {
+                const spriteMaterial = new THREE.SpriteMaterial({ map: hotspotVideoTexture, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
                 hotspotObject = new THREE.Sprite(spriteMaterial);
-                hotspotObject.scale.set(5, 5, 1); // Adjust sprite size.
+                hotspotObject.scale.set(5, 5, 1);
             }
 
-            // If the hotspot has a label (and is not an arrow), create a text sprite and group them.
             if (hotspotData.label && hotspotData.type !== 'arrow') {
                 const textCanvas = createTextCanvas(hotspotData.label, { color: 'black', fontSize: 30 });
                 const textTexture = new THREE.CanvasTexture(textCanvas);
                 const textMaterial = new THREE.SpriteMaterial({ map: textTexture, transparent: true });
                 const textSprite = new THREE.Sprite(textMaterial);
-
-                // Scale the text sprite based on its canvas dimensions.
-                const scaleFactor = 10;
-                textSprite.scale.set(textCanvas.width / scaleFactor, textCanvas.height / scaleFactor, 1);
-
-                // Position the text sprite below the main hotspot icon.
-                textSprite.position.y = -5; // Adjust as needed.
-
-                // Group the icon and the text together.
+                textSprite.scale.set(textCanvas.width / 10, textCanvas.height / 10, 1);
+                textSprite.position.y = -5;
                 const group = new THREE.Group();
                 group.add(hotspotObject);
                 group.add(textSprite);
                 group.position.copy(hotspotData.position);
-                group.userData = hotspotData; // Attach data to the group for click events.
+                group.userData = hotspotData;
                 scene.add(group);
                 hotspotMeshes.push(group);
             } else {
-                // For arrows or hotspots without labels, just add the object directly.
                 hotspotObject.position.copy(hotspotData.position);
                 hotspotObject.userData = hotspotData;
                 scene.add(hotspotObject);
@@ -1346,19 +969,16 @@
         function showVideo(videoUrl) {
             let embedUrl = videoUrl;
             if (videoUrl.includes('youtu.be') || videoUrl.includes('youtube.com')) {
-                const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:m\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([\w-]{11})(?:\S+)?/i;
-                const match = videoUrl.match(youtubeRegex);
+                const match = videoUrl.match(/(?:https?:\/\/)?(?:www\.)?(?:m\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([\w-]{11})/i);
                 if (match && match[1]) {
                     embedUrl = `https://www.youtube.com/embed/${match[1]}?autoplay=1&rel=0`;
                 } else {
                     console.error("Invalid YouTube URL:", videoUrl);
-                    hideVideo();
                     return;
                 }
             }
             videoPlayer.src = embedUrl;
             videoOverlay.style.display = 'flex';
-            // Hide the static 360 icon and toolbar when video is playing
             static360Icon.style.opacity = '0';
             verticalToolbar.style.display = 'none';
         }
@@ -1369,7 +989,6 @@
         function hideVideo() {
             videoPlayer.src = '';
             videoOverlay.style.display = 'none';
-            // Show the static 360 icon and toolbar again
             static360Icon.style.opacity = '1';
             verticalToolbar.style.display = 'flex';
         }
@@ -1386,27 +1005,35 @@
          */
         function hideInstructionPopup() {
             instructionPopupOverlay.style.display = 'none';
-            // Show the static 360 icon and toolbar for the first time
             static360Icon.style.opacity = '1';
             verticalToolbar.style.display = 'flex';
         }
 
         /**
-         * Shows the options popup and loads the first image.
+         * Shows the options popup and prepares the video and slider.
          */
         function showOptionsPopup() {
             optionsPopup.style.display = 'flex';
             
-            // Reset state every time the popup is opened
-            popupImagePath = "res/3D/bonnet_close/"; // Reset to default path
-            currentPopupOptionIndex = 0; // Reset to the first image
-            
-            // Configure the slider
-            optionSlider.max = popupOptions.length - 1;
-            optionSlider.value = currentPopupOptionIndex;
+            // Reset to the default closed bonnet state every time
+            currentScrubbableVideo = 'res/3D/bonnet_close.webm';
+            popupVideo.src = currentScrubbableVideo;
 
-            updatePopupImage(currentPopupOptionIndex);
-            // Show the static 360 icon when the popup is open
+            const setupSlider = () => {
+                optionSlider.max = 100;
+                optionSlider.value = 0;
+                popupVideo.currentTime = 0;
+                updateHotspotsForVideo(0);
+                optionSlider.style.display = 'block';
+                hotspot2DContainer.style.display = 'block';
+            };
+
+            if (popupVideo.readyState >= 1) {
+                setupSlider();
+            } else {
+                popupVideo.onloadedmetadata = setupSlider;
+            }
+            
             static360Icon.style.opacity = '1';
         }
 
@@ -1414,42 +1041,37 @@
          * Hides the options popup.
          */
         function hideOptionsPopup() {
-            // Stop any ongoing animation before closing the popup
-            stopImageAnimation();
             optionsPopup.style.display = 'none';
-            // Hide the text box when the main popup is closed
             hideTextInfo();
-            // Show the static 360 icon and toolbar again
             static360Icon.style.opacity = '1';
             verticalToolbar.style.display = 'flex';
+            
+            // Cancel any pending video transitions
+            popupVideo.onended = null;
+            popupVideo.onloadedmetadata = null;
 
-            // Stop the looping sound
+
             if (bonnetSound) {
                 bonnetSound.pause();
                 bonnetSound.currentTime = 0;
             }
 
-            // Stop and reset the active hotspot video
             if (activeHotspotVideo) {
                 activeHotspotVideo.style.display = 'none';
                 activeHotspotVideo.pause();
                 const siblingImg = activeHotspotVideo.parentElement.querySelector('img');
-                if (siblingImg) {
-                    siblingImg.style.display = 'block';
-                }
+                if (siblingImg) siblingImg.style.display = 'block';
                 activeHotspotVideo = null;
             }
 
-            // Reset zoom and pan when the popup is closed
             zoomLevel = 1;
             panX = 0;
             panY = 0;
-            updateImageTransform();
+            updateVideoTransform();
         }
         
         /**
          * Plays a sound file if sound is enabled.
-         * @param {string} url - The URL of the sound file to play.
          */
         function playSound(url) {
             if (!isSoundOn || !url) return;
@@ -1458,138 +1080,124 @@
         }
 
         /**
-         * Updates the image and hotspot links inside the options popup.
-         * @param {number} index - The index of the option to display.
+         * Creates 2D hotspots for the current video frame.
          */
-        function updatePopupImage(index) {
-            // Stop any previous animation
-            stopImageAnimation();
+        function create2DHotspots(hotspotsData) {
+            hotspotsData.forEach(hotspotData => {
+                const hotspotElement = document.createElement('div');
+                hotspotElement.className = 'hotspot-2d';
+                hotspotElement.style.left = `${hotspotData.x}%`;
+                hotspotElement.style.top = `${hotspotData.y}%`;
+                hotspotElement.title = hotspotData.label;
+                
+                const hotspotImage = document.createElement('img');
+                hotspotImage.src = (hotspotData.type === "image_sequence_with_path_change") ? 'res/ui/hotspot_bonnet.png' : 'res/ui/hotspot_normal.png';
+                hotspotImage.style.display = 'block';
+                hotspotElement.appendChild(hotspotImage);
 
-            // Reset the active hotspot when changing images
-            if (activeHotspotVideo) {
-                activeHotspotVideo.style.display = 'none';
-                activeHotspotVideo.pause();
-                // Find the sibling image and show it
-                const siblingImg = activeHotspotVideo.parentElement.querySelector('img');
-                if (siblingImg) {
-                    siblingImg.style.display = 'block';
-                }
-                activeHotspotVideo = null;
-            }
+                const hotspotVideo = document.createElement('video');
+                hotspotVideo.src = (hotspotData.type === "image_sequence_with_path_change") ? 'res/ui/hotspot.webm' : 'res/ui/hotspot_optionspopup.webm';
+                hotspotVideo.loop = true;
+                hotspotVideo.muted = true;
+                hotspotVideo.playsInline = true;
+                hotspotVideo.style.display = 'none';
+                hotspotElement.appendChild(hotspotVideo);
 
-            // Reset zoom and pan when a new image is loaded
-            zoomLevel = 1;
-            panX = 0;
-            panY = 0;
-            updateImageTransform();
-            
-            const option = popupOptions[index];
-            // Construct the full image URL using the dynamic path variable
-            popupImage.src = popupImagePath + option.imageUrl;
-            
-            // Clear existing 2D hotspots
-            hotspot2DContainer.innerHTML = '';
-            
-            // Create new 2D hotspots
-            if (option.hotspots2D && option.hotspots2D.length > 0) {
-                option.hotspots2D.forEach(hotspotData => {
-                    const hotspotElement = document.createElement('div');
-                    hotspotElement.className = 'hotspot-2d';
-                    hotspotElement.style.left = `${hotspotData.x}%`;
-                    hotspotElement.style.top = `${hotspotData.y}%`;
-                    hotspotElement.title = hotspotData.label;
-                    
-                    // Create and append the static image for the hotspot
-                    const hotspotImage = document.createElement('img');
-                    
-                    if (hotspotData.type === "image_sequence_with_path_change") {
-                        hotspotImage.src = 'res/ui/hotspot_bonnet.png';
-                    } else {
-                        hotspotImage.src = 'res/ui/hotspot_normal.png';
+                hotspotElement.addEventListener('click', () => {
+                    // Stop other active hotspot animations
+                    if (activeHotspotVideo && activeHotspotVideo !== hotspotVideo) {
+                        activeHotspotVideo.style.display = 'none';
+                        activeHotspotVideo.pause();
+                        const siblingImg = activeHotspotVideo.parentElement.querySelector('img');
+                        if (siblingImg) siblingImg.style.display = 'block';
                     }
-                    
-                    hotspotImage.style.display = 'block';
-                    hotspotElement.appendChild(hotspotImage);
 
-                    // Create and append the looping video for the hotspot
-                    const hotspotVideo = document.createElement('video');
+                    // Play this hotspot's animation
+                    hotspotImage.style.display = 'none';
+                    hotspotVideo.style.display = 'block';
+                    hotspotVideo.currentTime = 0;
+                    hotspotVideo.play();
+                    activeHotspotVideo = hotspotVideo;
+
+                    // Handle different hotspot types
                     if (hotspotData.type === "image_sequence_with_path_change") {
-                       hotspotVideo.src = 'res/ui/hotspot.webm';
-                    } else {
-                        hotspotVideo.src = 'res/ui/hotspot_optionspopup.webm';
+                        // This is the main logic change to play a transition video
+                        if (hotspotData.transitionVideo && hotspotData.nextScrubbableVideo) {
+                            // Hide controls during transition
+                            optionSlider.style.display = 'none';
+                            hotspot2DContainer.style.display = 'none';
+
+                            if (hotspotData.soundUrl) playSound(hotspotData.soundUrl);
+
+                            popupVideo.loop = false;
+                            popupVideo.src = hotspotData.transitionVideo;
+                            popupVideo.muted = !isSoundOn;
+                            popupVideo.play();
+
+                            popupVideo.onended = () => {
+                                // Transition ended, switch to the new scrubbable video
+                                currentScrubbableVideo = hotspotData.nextScrubbableVideo;
+                                popupVideo.src = currentScrubbableVideo;
+                                
+                                popupVideo.onloadedmetadata = () => {
+                                    // Reset slider and video for the new state
+                                    optionSlider.value = 0;
+                                    popupVideo.currentTime = 0;
+                                    
+                                    // Restore controls
+                                    optionSlider.style.display = 'block';
+                                    hotspot2DContainer.style.display = 'block';
+                                    updateHotspotsForVideo(0); // Update hotspots for the new video
+                                    
+                                    popupVideo.onloadedmetadata = null; // Clean up listener
+                                };
+                                popupVideo.onended = null; // Clean up listener
+                            };
+                        }
+                    } else if (hotspotData.type === "text_info") {
+                        showTextInfo(hotspotData.text);
                     }
-                    hotspotVideo.loop = true;
-                    hotspotVideo.muted = true;
-                    hotspotVideo.playsInline = true;
-                    hotspotVideo.style.display = 'none'; // Hidden by default
-                    hotspotElement.appendChild(hotspotVideo);
-
-                    hotspotElement.addEventListener('click', () => {
-                        // Stop any other playing hotspot video
-                        if (activeHotspotVideo && activeHotspotVideo !== hotspotVideo) {
-                            activeHotspotVideo.style.display = 'none';
-                            activeHotspotVideo.pause();
-                            const siblingImg = activeHotspotVideo.parentElement.querySelector('img');
-                            if (siblingImg) {
-                                siblingImg.style.display = 'block';
-                            }
-                        }
-
-                        // Play this hotspot's video
-                        hotspotImage.style.display = 'none';
-                        hotspotVideo.style.display = 'block';
-                        hotspotVideo.currentTime = 0;
-                        hotspotVideo.play();
-                        activeHotspotVideo = hotspotVideo;
-
-                        // --- Original click logic ---
-                        if (hotspotData.soundUrl) {
-                            if (hotspotData.soundUrl.includes('bonnet_clip.mp3')) {
-                                if (isSoundOn) {
-                                    bonnetSound.play().catch(e => console.error("Error playing sound:", e));
-                                }
-                            } else {
-                                playSound(hotspotData.soundUrl);
-                            }
-                        }
-
-                        if (hotspotData.type === "image_sequence" && hotspotData.sequenceImages) {
-                            startImageAnimation(hotspotData.sequenceImages);
-                        } else if (hotspotData.type === "image_sequence_with_path_change" && hotspotData.sequenceImages) {
-                            startImageAnimation(hotspotData.sequenceImages, () => {
-                                popupImagePath = hotspotData.next_path;
-                                updatePopupImage(currentPopupOptionIndex);
-                            });
-                        } else {
-                            showTextInfo(hotspotData.text);
-                        }
-                    });
-
-                    hotspot2DContainer.appendChild(hotspotElement);
                 });
-            }
-            
-            // Update the slider's value to match the current image index
-            optionSlider.value = index;
 
-            // Hide any currently visible text info when a new image is loaded
-            hideTextInfo();
+                hotspot2DContainer.appendChild(hotspotElement);
+            });
+        }
+
+        /**
+         * Updates the hotspots based on the slider's value and current video.
+         */
+        function updateHotspotsForVideo(sliderValue) {
+            hotspot2DContainer.innerHTML = ''; // Clear existing hotspots
+            
+            // Only show hotspots for the initial 'bonnet_close' video
+            if (currentScrubbableVideo !== 'res/3D/bonnet_close.webm') {
+                return;
+            }
+
+            let optionIndex = -1;
+            if (sliderValue >= 0 && sliderValue <= 10) {
+                optionIndex = 0;
+            } else if (sliderValue >= 20 && sliderValue <= 30) {
+                optionIndex = 5;
+            } else if (sliderValue >= 50 && sliderValue <= 60) {
+                optionIndex = 8;
+            }
+
+            if (optionIndex !== -1) {
+                const option = popupOptions[optionIndex];
+                if (option.hotspots2D && option.hotspots2D.length > 0) {
+                    create2DHotspots(option.hotspots2D);
+                }
+            }
         }
 
         /**
          * Shows the text info box with a given text.
-         * @param {string} text - The text to display in the info box.
          */
         function showTextInfo(text) {
-            // Clear any existing timer to prevent the box from closing prematurely
-            if (textInfoTimer) {
-                clearTimeout(textInfoTimer);
-            }
-
+            if (textInfoTimer) clearTimeout(textInfoTimer);
             textInfoContent.textContent = text;
             textInfoBox.style.display = 'flex';
-
-            // Set a timer to hide the box after 2 seconds (2000 milliseconds)
             textInfoTimer = setTimeout(hideTextInfo, 5000);
         }
 
@@ -1601,60 +1209,13 @@
         }
 
         /**
-         * Starts the image animation sequence on the main popup image.
-         * @param {string[]} images - An array of image URLs for the sequence.
-         * @param {function} [onComplete] - A callback function to run after the animation completes.
-         */
-        function startImageAnimation(images, onComplete = null) {
-            // Stop any existing animation
-            stopImageAnimation();
-            
-            isAnimating = true;
-            
-            animationImages = images;
-            animationImageIndex = 0;
-            const animationDuration = 100; // 2 seconds
-
-            // Function to advance the animation
-            function advanceAnimation() {
-                if (animationImageIndex < animationImages.length) {
-                    popupImage.src = animationImages[animationImageIndex];
-                    animationImageIndex++;
-                } else {
-                    // Loop is complete, stop the animation and call the callback
-                    stopImageAnimation();
-                    if (onComplete) {
-                        onComplete();
-                    }
-                }
-            }
-
-            // Set up the interval to run the animation
-            animationInterval = setInterval(advanceAnimation, animationDuration);
-            advanceAnimation(); // Show the first image immediately
-        }
-
-        /**
-         * Stops the image animation and re-enables navigation.
-         */
-        function stopImageAnimation() {
-            if (animationInterval) {
-                clearInterval(animationInterval);
-                animationInterval = null;
-            }
-            isAnimating = false;
-        }
-
-        /**
-         * Handles changes from the option slider.
+         * Handles changes from the option slider to scrub the video.
          */
         function onSliderChange() {
-            if (isAnimating) return;
-            const newIndex = parseInt(optionSlider.value, 10);
-            if (newIndex !== currentPopupOptionIndex) {
-                currentPopupOptionIndex = newIndex;
-                updatePopupImage(currentPopupOptionIndex);
-            }
+            if (!popupVideo.duration) return;
+            const sliderValue = parseInt(optionSlider.value, 10);
+            popupVideo.currentTime = (sliderValue / 100) * popupVideo.duration;
+            updateHotspotsForVideo(sliderValue);
         }
 
         /**
@@ -1672,112 +1233,78 @@
             landingPage.classList.add('hidden');
             init();
             animate();
-            // Show the instruction popup when the experience starts
             showInstructionPopup();
         }
-
+        
         /**
-         * Zooms in on the popup image.
+         * Updates the video's CSS transform property based on zoom and pan values.
          */
-        function zoomIn() {
-            if (zoomLevel < maxZoom) {
-                zoomLevel += 0.5;
-                updateImageTransform();
-            }
+        function updateVideoTransform() {
+            popupVideo.style.transform = `scale(${zoomLevel}) translate(${panX}px, ${panY}px)`;
+            hotspot2DContainer.style.display = (zoomLevel > minZoom) ? 'none' : 'block';
         }
         
         /**
-         * Zooms out on the popup image.
-         */
-        function zoomOut() {
-            if (zoomLevel > minZoom) {
-                zoomLevel -= 0.5;
-                updateImageTransform();
-            }
-        }
-
-        /**
-         * Updates the image's CSS transform property based on zoom and pan values.
-         */
-        function updateImageTransform() {
-            popupImage.style.transform = `scale(${zoomLevel}) translate(${panX}px, ${panY}px)`;
-
-            // Hide hotspots when zoomed in, show when zoomed out
-            if (zoomLevel > minZoom) {
-                hotspot2DContainer.style.display = 'none';
-            } else {
-                hotspot2DContainer.style.display = 'block';
-            }
-        }
-        
-        /**
-         * NEW: Toggles fullscreen mode for the entire page.
+         * Toggles fullscreen mode for the entire page.
          */
         function toggleFullScreen() {
             if (!document.fullscreenElement) {
                 document.documentElement.requestFullscreen().catch(err => {
-                    alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                    console.warn(`Error attempting to enable full-screen mode: ${err.message}`);
                 });
-            } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                }
+            } else if (document.exitFullscreen) {
+                document.exitFullscreen();
             }
         }
 
         /**
-         * NEW: Zooms into the 360-degree scene or the options popup.
+         * Zooms into the 360-degree scene or the options popup.
          */
         function zoomIn360() {
             if (optionsPopup.style.display === 'flex') {
-                zoomIn();
+                if (zoomLevel < maxZoom) {
+                    zoomLevel += 0.5;
+                    updateVideoTransform();
+                }
             } else {
-                camera.fov = Math.max(10, camera.fov - 5); // Decrease FOV to zoom in
+                camera.fov = Math.max(10, camera.fov - 5);
                 camera.updateProjectionMatrix();
             }
         }
 
         /**
-         * NEW: Zooms out of the 360-degree scene or the options popup.
+         * Zooms out of the 360-degree scene or the options popup.
          */
         function zoomOut360() {
             if (optionsPopup.style.display === 'flex') {
-                zoomOut();
+                if (zoomLevel > minZoom) {
+                    zoomLevel -= 0.5;
+                    updateVideoTransform();
+                }
             } else {
-                camera.fov = Math.min(60, camera.fov + 5); // Increase FOV to zoom out
+                camera.fov = Math.min(60, camera.fov + 5);
                 camera.updateProjectionMatrix();
             }
         }
 
         /**
-         * NEW: Toggles sound for all video elements.
+         * Toggles sound for all video elements.
          */
         function toggleSound() {
             isSoundOn = !isSoundOn;
-            // Mute/unmute all video elements on the page
             document.querySelectorAll('video').forEach(video => {
                 video.muted = !isSoundOn;
             });
-
-            // Immediately toggle the looping sound's muted state
-            if (bonnetSound) {
-                bonnetSound.muted = !isSoundOn;
-            }
-
+            if (bonnetSound) bonnetSound.muted = !isSoundOn;
             updateSoundButton();
         }
         
         /**
-         * NEW: Updates the sound button's background image based on the sound state.
+         * Updates the sound button's background image based on the sound state.
          */
         function updateSoundButton() {
-            if (isSoundOn) {
-                soundBtn.style.backgroundImage = "url('res/ui/vol_on.png')";
-            } else {
-                soundBtn.style.backgroundImage = "url('res/ui/vol_off.png')";
-            }
+            soundBtn.style.backgroundImage = isSoundOn ? "url('res/ui/vol_on.png')" : "url('res/ui/vol_off.png')";
         }
-
 
         // Add the event listener to the start button
         startButton.addEventListener('click', startExperience);
