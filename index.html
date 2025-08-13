@@ -629,8 +629,8 @@
                             {
                               x: 70, y: 31, label: "A", type: "image_sequence_with_path_change", 
                               soundUrl: "res/ui/bonnet_clip.mp3",
-                              transitionVideo: "res/3D/bonnet_open.webm",
-                              nextScrubbableVideo: "res/3D/bonnet_open_360.webm"
+                              transitionVideo: "res/3D/bonnet_close_anim.webm",
+                              nextScrubbableVideo: "res/3D/bonnet_close.webm"
                             },
                             { x: 79, y: 62, label: "C", type: "text_info", text: "Front Tyre Size\n7.15 x 16" },
                             { x: 45, y: 65, label: "D", type: "text_info", text: "PCM\nTransmission" },
@@ -1205,7 +1205,8 @@
         }
         
         /**
-         * NEW: Plays a one-off transition video and switches to a new scrubbable video.
+         * UPDATED: Plays a one-off transition video and switches to a new scrubbable video,
+         * ensuring the first frame of the new video is drawn correctly.
          */
         function playTransitionVideo(hotspotData) {
             optionSlider.style.display = 'none';
@@ -1236,20 +1237,35 @@
                 currentScrubbableVideo = hotspotData.nextScrubbableVideo;
                 popupVideo.src = currentScrubbableVideo;
                 
-                popupVideo.onloadedmetadata = () => {
+                const setupNewScrubbableVideo = () => {
                     popupCanvas.width = popupVideo.videoWidth;
                     popupCanvas.height = popupVideo.videoHeight;
                     optionSlider.value = 0;
-                    popupVideo.currentTime = 0;
-                    targetVideoTime = 0; // NEW: Reset target time
-                    drawVideoFrame();
+                    targetVideoTime = 0;
                     
+                    // Add a one-time event listener to draw the first frame once it's ready.
+                    const drawFirstFrame = () => {
+                        drawVideoFrame();
+                        updateHotspotsForVideo(0);
+                        popupVideo.removeEventListener('seeked', drawFirstFrame);
+                    };
+                    popupVideo.addEventListener('seeked', drawFirstFrame);
+
+                    // Set currentTime to 0 to trigger the seek.
+                    popupVideo.currentTime = 0;
+
                     optionSlider.style.display = 'block';
                     hotspot2DContainer.style.display = 'block';
-                    updateHotspotsForVideo(0);
                     
                     popupVideo.onloadedmetadata = null;
                 };
+
+                if (popupVideo.readyState >= 1) {
+                    setupNewScrubbableVideo();
+                } else {
+                    popupVideo.onloadedmetadata = setupNewScrubbableVideo;
+                }
+                
                 popupVideo.onended = null;
             };
         }
