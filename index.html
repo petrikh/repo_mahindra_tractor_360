@@ -334,46 +334,34 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* New styles for zoom buttons and slider */
+        /* MODIFIED: Hide the slider controls */
         #popupControls {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
-            z-index: 160;
-            background-color: rgba(0,0,0,0.5);
-            padding: 10px 20px;
-            border-radius: 25px;
+            display: none; 
         }
         
-        /* New styles for the option slider */
         .option-slider {
-            -webkit-appearance: none; /* Override default CSS */
+            -webkit-appearance: none;
             appearance: none;
-            width: 250px; /* Adjust width as needed */
-            height: 8px; /* Slider track height */
-            background: #555; /* Slider track color */
+            width: 250px;
+            height: 8px;
+            background: #555;
             outline: none;
             opacity: 0.7;
             transition: opacity .2s;
             border-radius: 5px;
-            margin: 0 15px; /* Add some margin */
+            margin: 0 15px;
         }
 
         .option-slider:hover {
-            opacity: 1; /* Fully visible on hover */
+            opacity: 1;
         }
 
         .option-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 20px; /* Thumb width */
-            height: 20px; /* Thumb height */
-            background: #fff; /* Thumb color */
+            width: 20px;
+            height: 20px;
+            background: #fff;
             cursor: pointer;
             border-radius: 50%;
             border: 2px solid #333;
@@ -471,6 +459,7 @@
             
             <button id="closePopupBtn"></button>
 
+            <!-- The slider is now hidden and controlled by dragging -->
             <div id="popupControls">
                 <input type="range" id="optionSlider" class="option-slider" value="0" min="0" max="100">
             </div>
@@ -508,6 +497,8 @@
         let isPopupDragging = false;
         let startPopupDragX = 0;
         let startPopupDragY = 0;
+        // NEW: Variable to store video time at the start of a drag
+        let startVideoTimeOnDrag = 0;
 
         // Variables for zooming and panning
         let zoomLevel = 1;
@@ -532,11 +523,6 @@
         let popupCanvas, ctx;
         let transitionAnimationId = null;
 
-        // NEW: Variables for smooth slider scrubbing
-        let targetVideoTime = 0;
-        let scrubAnimationId = null;
-
-
         // HTML elements
         const landingPage = document.getElementById('landingPage');
         const startButton = document.getElementById('startButton');
@@ -553,7 +539,7 @@
         const instructionPopupOverlay = document.getElementById('instructionPopupOverlay');
         const closeInstructionBtn = document.getElementById('closeInstructionBtn');
         const static360Icon = document.getElementById('static360Icon');
-        const optionSlider = document.getElementById('optionSlider');
+        const optionSlider = document.getElementById('optionSlider'); // Keep reference, though hidden
         
         // New Toolbar Elements
         const verticalToolbar = document.getElementById('verticalToolbar');
@@ -756,17 +742,26 @@
         }
         
         /**
-         * Handles the mouse down event for dragging/panning the popup video.
+         * MODIFIED: Handles mouse down for both panning (when zoomed) and video scrubbing.
          */
         function onPopupMouseDown(event) {
-            if (event.target.classList.contains('hotspot-2d') || event.target.id === 'optionSlider') return;
+            if (event.target.classList.contains('hotspot-2d')) return;
+            
             isPopupDragging = true;
             startPopupDragX = event.clientX;
             startPopupDragY = event.clientY;
-            startPanX = panX;
-            startPanY = panY;
             popupContent.classList.add('dragging');
+
+            if (zoomLevel > 1) {
+                // Logic for panning when zoomed in
+                startPanX = panX;
+                startPanY = panY;
+            } else {
+                // Logic for scrubbing video when not zoomed
+                startVideoTimeOnDrag = popupVideo.currentTime;
+            }
         }
+
 
         /**
          * Handles the mouse up event for the popup video.
@@ -777,28 +772,62 @@
         }
         
         /**
-         * Handles the mouse move event for panning the popup video when zoomed.
+         * MODIFIED: Handles mouse move for both panning and video scrubbing with seamless looping.
          */
         function onPopupMouseMove(event) {
-            if (!isPopupDragging || zoomLevel === 1) return;
-            const deltaX = event.clientX - startPopupDragX;
-            const deltaY = event.clientY - startPopupDragY;
-            panX = startPanX + deltaX;
-            panY = startPanY + deltaY;
-            
-            drawVideoFrame(); // Redraw canvas with new pan
+            if (!isPopupDragging) return;
+
+            if (zoomLevel > 1) {
+                // Panning logic (existing)
+                const deltaX = event.clientX - startPopupDragX;
+                const deltaY = event.clientY - startPopupDragY;
+                panX = startPanX + deltaX;
+                panY = startPanY + deltaY;
+                drawVideoFrame(); // Redraw canvas with new pan
+            } else {
+                // Scrubbing logic
+                if (!popupVideo.duration || popupVideo.seeking) return; // Don't do anything if video is busy
+
+                const deltaX = event.clientX - startPopupDragX;
+                // Sensitivity: dragging across half the screen width scrubs the whole video
+                const sensitivity = (popupVideo.duration / popupCanvas.width) * 2;
+                let newTime = startVideoTimeOnDrag + deltaX * sensitivity;
+
+                // NEW: Seamless looping logic
+                if (popupVideo.duration) {
+                    newTime = newTime % popupVideo.duration;
+                    if (newTime < 0) {
+                        newTime += popupVideo.duration;
+                    }
+                }
+
+                // Only update if the time has changed to avoid flooding seek requests
+                if (Math.abs(newTime - popupVideo.currentTime) > 0.01) {
+                    popupVideo.currentTime = newTime;
+                    
+                    // Update hotspots based on the new video position (as a percentage)
+                    const percentage = (newTime / popupVideo.duration) * 100;
+                    updateHotspotsForVideo(percentage);
+                    // The 'seeked' event listener will handle drawing the new frame
+                }
+            }
         }
         
         /**
          * Handles the touch start event for the popup video.
          */
         function onPopupTouchStart(event) {
-            if (event.touches.length === 1 && !event.target.classList.contains('hotspot-2d') && event.target.id !== 'optionSlider') {
+            if (event.touches.length === 1 && !event.target.classList.contains('hotspot-2d')) {
                 isPopupDragging = true;
                 startPopupDragX = event.touches[0].clientX;
                 startPopupDragY = event.touches[0].clientY;
-                startPanX = panX;
-                startPanY = panY;
+                
+                if (zoomLevel > 1) {
+                    startPanX = panX;
+                    startPanY = panY;
+                } else {
+                    startVideoTimeOnDrag = popupVideo.currentTime;
+                }
             }
         }
         
@@ -810,16 +839,40 @@
         }
 
         /**
-         * Handles the touch move event for the popup video.
+         * MODIFIED: Handles touch move for both panning and video scrubbing with seamless looping.
          */
         function onPopupTouchMove(event) {
-            if (!isPopupDragging || event.touches.length !== 1 || zoomLevel === 1) return;
-            const deltaX = event.touches[0].clientX - startPopupDragX;
-            const deltaY = event.touches[0].clientY - startPopupDragY;
-            panX = startPanX + deltaY;
-            panY = startPanY + deltaY;
-            drawVideoFrame(); // Redraw canvas with new pan
+            if (!isPopupDragging || event.touches.length !== 1) return;
             event.preventDefault();
+
+            if (zoomLevel > 1) {
+                const deltaX = event.touches[0].clientX - startPopupDragX;
+                const deltaY = event.touches[0].clientY - startPopupDragY;
+                // BUG FIX: Correctly update panX with deltaX
+                panX = startPanX + deltaX;
+                panY = startPanY + deltaY;
+                drawVideoFrame();
+            } else {
+                 if (!popupVideo.duration || popupVideo.seeking) return;
+
+                const deltaX = event.touches[0].clientX - startPopupDragX;
+                const sensitivity = (popupVideo.duration / popupCanvas.width) * 2;
+                let newTime = startVideoTimeOnDrag + deltaX * sensitivity;
+                
+                // NEW: Seamless looping logic
+                if (popupVideo.duration) {
+                    newTime = newTime % popupVideo.duration;
+                    if (newTime < 0) {
+                        newTime += popupVideo.duration;
+                    }
+                }
+
+                if (Math.abs(newTime - popupVideo.currentTime) > 0.01) {
+                    popupVideo.currentTime = newTime;
+                    const percentage = (newTime / popupVideo.duration) * 100;
+                    updateHotspotsForVideo(percentage);
+                }
+            }
         }
 
         /**
@@ -872,7 +925,12 @@
             window.addEventListener('resize', onWindowResize, false);
             closeVideoBtn.addEventListener('click', hideVideo);
             closePopupBtn.addEventListener('click', hideOptionsPopup);
-            optionSlider.addEventListener('input', onSliderChange);
+            
+            // REMOVED: Slider event listener is no longer needed
+            // optionSlider.addEventListener('input', onSliderChange);
+            
+            // NEW: Add a persistent listener to draw frames efficiently after a seek operation
+            popupVideo.addEventListener('seeked', drawVideoFrame);
             
             popupContent.addEventListener('mousedown', onPopupMouseDown);
             popupContent.addEventListener('mouseup', onPopupMouseUp);
@@ -1051,7 +1109,7 @@
         }
 
         /**
-         * Shows the options popup and prepares the video and slider.
+         * MODIFIED: Shows the options popup and prepares the video for scrubbing.
          */
         function showOptionsPopup() {
             optionsPopup.style.display = 'flex';
@@ -1066,25 +1124,13 @@
                 popupCanvas.width = popupVideo.videoWidth;
                 popupCanvas.height = popupVideo.videoHeight;
 
-                // Reset slider
-                optionSlider.max = 100;
-                optionSlider.value = 0;
-                targetVideoTime = 0;
-
-                // Add a one-time event listener to draw the first frame once it's ready.
-                const drawFirstFrame = () => {
-                    drawVideoFrame();
-                    updateHotspotsForVideo(0);
-                    // Remove the listener so it doesn't fire again.
-                    popupVideo.removeEventListener('seeked', drawFirstFrame); 
-                };
-                popupVideo.addEventListener('seeked', drawFirstFrame);
-
-                // Set currentTime to 0 to trigger the seek.
+                // Set currentTime to 0 to trigger the initial seek.
                 popupVideo.currentTime = 0;
-
-                // Show controls
-                optionSlider.style.display = 'block';
+                // The persistent 'seeked' listener from init() will handle drawing the first frame.
+                
+                // Update hotspots for the initial position (0%).
+                updateHotspotsForVideo(0);
+                
                 hotspot2DContainer.style.display = 'block';
                 
                 // Clean up the metadata listener
@@ -1115,11 +1161,6 @@
             if (transitionAnimationId) {
                 cancelAnimationFrame(transitionAnimationId);
                 transitionAnimationId = null;
-            }
-            // NEW: Cancel scrubbing animation
-            if (scrubAnimationId) {
-                cancelAnimationFrame(scrubAnimationId);
-                scrubAnimationId = null;
             }
             popupVideo.onended = null;
             popupVideo.onloadedmetadata = null;
@@ -1205,8 +1246,7 @@
         }
         
         /**
-         * UPDATED: Plays a one-off transition video and switches to a new scrubbable video,
-         * ensuring the first frame of the new video is drawn correctly.
+         * MODIFIED: Plays a transition video and sets up the next scrubbable video.
          */
         function playTransitionVideo(hotspotData) {
             optionSlider.style.display = 'none';
@@ -1240,21 +1280,10 @@
                 const setupNewScrubbableVideo = () => {
                     popupCanvas.width = popupVideo.videoWidth;
                     popupCanvas.height = popupVideo.videoHeight;
-                    optionSlider.value = 0;
-                    targetVideoTime = 0;
                     
-                    // Add a one-time event listener to draw the first frame once it's ready.
-                    const drawFirstFrame = () => {
-                        drawVideoFrame();
-                        updateHotspotsForVideo(0);
-                        popupVideo.removeEventListener('seeked', drawFirstFrame);
-                    };
-                    popupVideo.addEventListener('seeked', drawFirstFrame);
-
-                    // Set currentTime to 0 to trigger the seek.
                     popupVideo.currentTime = 0;
+                    updateHotspotsForVideo(0);
 
-                    optionSlider.style.display = 'block';
                     hotspot2DContainer.style.display = 'block';
                     
                     popupVideo.onloadedmetadata = null;
@@ -1272,20 +1301,19 @@
 
 
         /**
-         * REFACTORED: Updates hotspots based on the current video and slider value using the new configuration object.
+         * MODIFIED: Updates hotspots based on the video's current position percentage.
          */
-        function updateHotspotsForVideo(sliderValue) {
+        function updateHotspotsForVideo(videoPercentage) {
             hotspot2DContainer.innerHTML = '';
             
             const config = hotspotConfigurations[currentScrubbableVideo];
-            if (!config) return; // No configuration for this video, so do nothing.
+            if (!config) return;
 
             if (config.type === 'static') {
-                // If the type is 'static', just create the hotspots. The slider value is ignored.
                 create2DHotspots(config.hotspots);
             } else if (config.type === 'slider') {
-                // If the type is 'slider', find the correct set of hotspots for the current slider value.
-                const option = config.options.find(opt => sliderValue >= opt.range[0] && sliderValue <= opt.range[1]);
+                // Find hotspots based on the video's progress percentage
+                const option = config.options.find(opt => videoPercentage >= opt.range[0] && videoPercentage <= opt.range[1]);
                 if (option && option.hotspots) {
                     create2DHotspots(option.hotspots);
                 }
@@ -1309,80 +1337,26 @@
             textInfoBox.style.display = 'none';
         }
 
-        /**
-         * OPTIMIZED: Handles changes from the option slider to smoothly scrub the video.
-         */
-        function onSliderChange() {
-            if (!popupVideo.duration || transitionAnimationId) return;
-            const sliderValue = parseInt(optionSlider.value, 10);
-            // Set the target time for the animation loop
-            targetVideoTime = (sliderValue / 100) * popupVideo.duration;
-            updateHotspotsForVideo(sliderValue);
+        // REMOVED: The onSliderChange and animateScrub functions are no longer needed
+        // as scrubbing is handled by direct mouse dragging.
 
-            // If an animation isn't already running, start one.
-            if (!scrubAnimationId) {
-                scrubAnimationId = requestAnimationFrame(animateScrub);
-            }
-        }
-
-        /**
-         * OPTIMIZED: Animation loop for smooth scrubbing.
-         * This version checks if the video is currently seeking and waits for it to finish
-         * before requesting the next frame, preventing stuttering.
-         */
-        function animateScrub() {
-            // If the video is busy seeking, wait for the next animation frame.
-            // This gives the video element time to catch up.
-            if (popupVideo.seeking) {
-                drawVideoFrame(); // Continue to draw the last available frame so it doesn't freeze.
-                scrubAnimationId = requestAnimationFrame(animateScrub);
-                return;
-            }
-
-            const timeDifference = targetVideoTime - popupVideo.currentTime;
-
-            // If we're very close to the target, do a final snap and stop the animation.
-            if (Math.abs(timeDifference) < 0.05) {
-                popupVideo.currentTime = targetVideoTime;
-                drawVideoFrame();
-                scrubAnimationId = null; // Stop the loop
-                return;
-            }
-
-            // Move currentTime towards the target with an easing factor.
-            // A larger factor makes the animation more responsive.
-            popupVideo.currentTime += timeDifference * 0.2;
-
-            // Draw the frame. The 'seeking' check at the top of the next loop will handle any latency.
-            drawVideoFrame();
-
-            // Continue the animation loop.
-            scrubAnimationId = requestAnimationFrame(animateScrub);
-        }
         
         /**
          * NEW: Draws the current video frame to the canvas, applying zoom and pan.
          */
         function drawVideoFrame() {
-            // Ensure canvas and video dimensions are set
             if (!popupCanvas.width || !popupCanvas.height || !popupVideo.videoWidth || !popupVideo.videoHeight) {
                 return;
             }
             
-            // Clear the canvas
-            ctx.fillStyle = '#fff'; // Match background
+            ctx.fillStyle = '#fff';
             ctx.fillRect(0, 0, popupCanvas.width, popupCanvas.height);
 
-            // Calculate the source view based on zoom and pan
             const sWidth = popupVideo.videoWidth / zoomLevel;
             const sHeight = popupVideo.videoHeight / zoomLevel;
-            // Center the zoomed view and apply pan
             let sx = (popupVideo.videoWidth - sWidth) / 2 - panX;
             let sy = (popupVideo.videoHeight - sHeight) / 2 - panY;
 
-            // Clamp pan values to prevent panning outside the video boundaries
-            const maxPanX = (popupVideo.videoWidth - sWidth) / 2;
-            const maxPanY = (popupVideo.videoHeight - sHeight) / 2;
             sx = Math.max(0, Math.min(sx, popupVideo.videoWidth - sWidth));
             sy = Math.max(0, Math.min(sy, popupVideo.videoHeight - sHeight));
             panX = (popupVideo.videoWidth - sWidth) / 2 - sx;
@@ -1390,9 +1364,9 @@
 
 
             ctx.drawImage(
-                popupVideo, // source image
-                sx, sy, sWidth, sHeight, // source rect
-                0, 0, popupCanvas.width, popupCanvas.height // destination rect
+                popupVideo,
+                sx, sy, sWidth, sHeight,
+                0, 0, popupCanvas.width, popupCanvas.height
             );
         }
 
@@ -1452,7 +1426,6 @@
             if (optionsPopup.style.display === 'flex') {
                 if (zoomLevel > minZoom) {
                     zoomLevel = Math.max(minZoom, zoomLevel - 0.5);
-                    // Reset pan when zooming out completely
                     if (zoomLevel === 1) {
                         panX = 0;
                         panY = 0;
