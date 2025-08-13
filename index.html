@@ -564,49 +564,86 @@
         const panorama2ImageUrl = "res/nav/2.png";
         const panorama3ImageUrl = "res/nav/3.png";
 
-        // Data for the popup options, including new 2D hotspots
-        const popupOptions = [
-            { // Index 0 (Video 0-10%)
-                hotspots2D: [
-                    { x: 32, y: 92, label: "A", type: "text_info", text:"Turning Radius\n2.3 Mtrs" },
-                    { x: 51.5, y: 60, label: "B", type: "text_info", text: "Battery\n88 Amp x 12 volt" },
-                    { x: 39, y: 43, label: "C", type: "text_info", text: "Headlamps\nTrapezoidal Clear\nLense" }
-                ]
-            },
-            {}, // Index 1
-            {}, // Index 2
-            {}, // Index 3
-            {}, // Index 4
-            { // Index 5 (Video 20-30%)
-                hotspots2D: [
-                    {
-                      x: 70, y: 31, label: "A", type: "image_sequence_with_path_change", 
-                      soundUrl: "res/ui/bonnet_clip.mp3",
-                      transitionVideo: "res/3D/bonnet_open.webm",
-                      nextScrubbableVideo: "res/3D/bonnet_open_360.webm"
-                    },
-                    { x: 79, y: 62, label: "C", type: "text_info", text: "Front Tyre Size\n7.15 x 16" },
-                    { x: 45, y: 65, label: "D", type: "text_info", text: "PCM\nTransmission" },
-                    { x: 28, y: 55, label: "E", type: "text_info", text: "Rear Tyre Size\n14.9 x 28" },
-                ]
-            },
-            {}, // Index 6
-            {}, // Index 7
-            { // Index 8 (Video 50-60%)
-                hotspots2D: [
-                    { x: 62, y: 25, label: "A", type: "text_info", text:"Wet Type\nAir Filter" },
-                    { x: 56, y: 61, label: "B", type: "text_info", text: "Dual\nClutch" },
-                    { x: 75, y: 75, label: "C", type: "text_info", text: "Oil\nImmersed\nBrakes" }
-                ]
-            }
-        ];
-
         // Data structure for panoramic images and their hotspots
         const panoData = [
             { name: "Panorama 1", imageUrl: panorama1ImageUrl, hotspots: [{ id: "nextPanoArrow1", position: new THREE.Vector3(80, -20, 0), rotation: new THREE.Vector3(0, Math.PI / 2, 0), type: "arrow", targetPanoIndex: 1, label: "Next" }] },
             { name: "Panorama 2", imageUrl: panorama2ImageUrl, hotspots: [{ id: "nextPanoArrow2", position: new THREE.Vector3(80, -20, 0), rotation: new THREE.Vector3(0, Math.PI / 2, 0), type: "arrow", targetPanoIndex: 2, label: "Next" }, { id: "backPanoArrow2", position: new THREE.Vector3(-80, -20, 0), rotation: new THREE.Vector3(0, -Math.PI / 2, 0), type: "arrow", targetPanoIndex: 0, label: "Back" }] },
             { name: "Panorama 3", imageUrl: panorama3ImageUrl, hotspots: [{ id: "popupHotspot3D", position: new THREE.Vector3(80, -25,0), type: "popup", label: "Explore Tractor" }, { id: "backPanoArrow", position: new THREE.Vector3(-80, -20, 0), rotation: new THREE.Vector3(0, -Math.PI / 2, 0), type: "arrow", targetPanoIndex: 1, label: "Back" }] }
         ];
+
+        // NEW: Centralized hotspot configuration
+        const hotspotConfigurations = {
+            'res/3D/bonnet_close.webm': {
+                type: 'slider',
+                options: [
+                    { 
+                        range: [0, 10], 
+                        hotspots: [
+                            { x: 32, y: 92, label: "A", type: "text_info", text:"Turning Radius\n2.3 Mtrs" },
+                            { x: 51.5, y: 60, label: "B", type: "text_info", text: "Battery\n88 Amp x 12 volt" },
+                            { x: 39, y: 43, label: "C", type: "text_info", text: "Headlamps\nTrapezoidal Clear\nLense" }
+                        ] 
+                    },
+                    { 
+                        range: [20, 30], 
+                        hotspots: [
+                            {
+                              x: 70, y: 31, label: "A", type: "image_sequence_with_path_change", 
+                              soundUrl: "res/ui/bonnet_clip.mp3",
+                              transitionVideo: "res/3D/bonnet_open.webm",
+                              nextScrubbableVideo: "res/3D/bonnet_open_360.webm"
+                            },
+                            { x: 79, y: 62, label: "C", type: "text_info", text: "Front Tyre Size\n7.15 x 16" },
+                            { x: 45, y: 65, label: "D", type: "text_info", text: "PCM\nTransmission" },
+                            { x: 28, y: 55, label: "E", type: "text_info", text: "Rear Tyre Size\n14.9 x 28" },
+                        ] 
+                    },
+                    { 
+                        range: [50, 60], 
+                        hotspots: [
+                            { x: 62, y: 25, label: "A", type: "text_info", text:"Wet Type\nAir Filter" },
+                            { x: 56, y: 61, label: "B", type: "text_info", text: "Dual\nClutch" },
+                            { x: 75, y: 75, label: "C", type: "text_info", text: "Oil\nImmersed\nBrakes" }
+                        ] 
+                    }
+                ]
+            },
+            'res/3D/bonnet_open_360.webm': {
+                type: 'slider',
+                options: [
+                    { 
+                        range: [0, 10], 
+                        hotspots: [
+                            { x: 32, y: 92, label: "A", type: "text_info", text:"Turning Radius\n2.3 Mtrs" },
+                            { x: 51.5, y: 60, label: "B", type: "text_info", text: "Battery\n88 Amp x 12 volt" },
+                            { x: 39, y: 43, label: "C", type: "text_info", text: "Headlamps\nTrapezoidal Clear\nLense" }
+                        ] 
+                    },
+                    { 
+                        range: [20, 30], 
+                        hotspots: [
+                            {
+                              x: 70, y: 31, label: "A", type: "image_sequence_with_path_change", 
+                              soundUrl: "res/ui/bonnet_clip.mp3",
+                              transitionVideo: "res/3D/bonnet_open.webm",
+                              nextScrubbableVideo: "res/3D/bonnet_open_360.webm"
+                            },
+                            { x: 79, y: 62, label: "C", type: "text_info", text: "Front Tyre Size\n7.15 x 16" },
+                            { x: 45, y: 65, label: "D", type: "text_info", text: "PCM\nTransmission" },
+                            { x: 28, y: 55, label: "E", type: "text_info", text: "Rear Tyre Size\n14.9 x 28" },
+                        ] 
+                    },
+                    { 
+                        range: [50, 60], 
+                        hotspots: [
+                            { x: 62, y: 25, label: "A", type: "text_info", text:"Wet Type\nAir Filter" },
+                            { x: 56, y: 61, label: "B", type: "text_info", text: "Dual\nClutch" },
+                            { x: 75, y: 75, label: "C", type: "text_info", text: "Oil\nImmersed\nBrakes" }
+                        ] 
+                    }
+                ]
+            }
+        };
 
         
         /**
@@ -1201,28 +1238,22 @@
 
 
         /**
-         * Updates the hotspots based on the slider's value and current video.
+         * REFACTORED: Updates hotspots based on the current video and slider value using the new configuration object.
          */
         function updateHotspotsForVideo(sliderValue) {
-            hotspot2DContainer.innerHTML = ''; 
+            hotspot2DContainer.innerHTML = '';
             
-            if (currentScrubbableVideo !== 'res/3D/bonnet_close.webm') {
-                return;
-            }
+            const config = hotspotConfigurations[currentScrubbableVideo];
+            if (!config) return; // No configuration for this video, so do nothing.
 
-            let optionIndex = -1;
-            if (sliderValue >= 0 && sliderValue <= 10) {
-                optionIndex = 0;
-            } else if (sliderValue >= 20 && sliderValue <= 30) {
-                optionIndex = 5;
-            } else if (sliderValue >= 50 && sliderValue <= 60) {
-                optionIndex = 8;
-            }
-
-            if (optionIndex !== -1) {
-                const option = popupOptions[optionIndex];
-                if (option.hotspots2D && option.hotspots2D.length > 0) {
-                    create2DHotspots(option.hotspots2D);
+            if (config.type === 'static') {
+                // If the type is 'static', just create the hotspots. The slider value is ignored.
+                create2DHotspots(config.hotspots);
+            } else if (config.type === 'slider') {
+                // If the type is 'slider', find the correct set of hotspots for the current slider value.
+                const option = config.options.find(opt => sliderValue >= opt.range[0] && sliderValue <= opt.range[1]);
+                if (option && option.hotspots) {
+                    create2DHotspots(option.hotspots);
                 }
             }
         }
