@@ -305,13 +305,13 @@
         /* Styles for the text info box */
         #textInfoBox {
             position: absolute;
-            top: 20px;
-            left: 20px;
+            top: 100px;
+            left: 130px;
             width: 240px; /* A smaller width for the info box */
-            aspect-ratio: 1895 / 884; /* IMPORTANT: Adjust this to match your info_box.png aspect ratio */
+            aspect-ratio: 735 / 463; /* IMPORTANT: Adjust this to match your info_box.png aspect ratio */
             background: url('res/ui/info_box.png') no-repeat center center;
             background-size: cover; /* Use 'cover' to fill the area without distorting the image */
-            color: white;
+            color: rgb(0, 0, 0);
             padding: 25px; /* Adjust padding for the smaller size */
             z-index: 170;
             display: none; /* Hidden by default, will be set to 'flex' by JS */
@@ -1035,9 +1035,27 @@
                     hotspotObject.rotation.set(Math.PI / 2, 0, hotspotData.rotation.z);
                 }
             } else {
-                const spriteMaterial = new THREE.SpriteMaterial({ map: hotspotVideoTexture, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+                // ===== FIX START: Unify Hotspot Rendering =====
+                // The previous 'AdditiveBlending' caused artifacts on compressed videos.
+                // This new method uses the same custom shader as the navigation arrows.
+                // It calculates the brightness (luma) of each pixel and makes dark pixels
+                // (like the black background) fully transparent, resulting in a clean cutout.
+                const spriteMaterial = new THREE.SpriteMaterial({ map: hotspotVideoTexture, transparent: true, depthWrite: false });
+                spriteMaterial.onBeforeCompile = (shader) => {
+                    shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
+                        #ifdef USE_MAP
+                            vec4 texelColor = texture2D( map, vUv );
+                            texelColor = mapTexelToLinear( texelColor );
+                            // Calculate brightness (luma) and discard dark pixels to remove the black background
+                            float luma = dot(texelColor.rgb, vec3(0.299, 0.587, 0.114));
+                            if (luma < 0.2) discard; // Adjusted threshold for cleaner edge
+                            diffuseColor *= texelColor;
+                        #endif
+                    `);
+                };
                 hotspotObject = new THREE.Sprite(spriteMaterial);
                 hotspotObject.scale.set(5, 5, 1);
+                // ===== FIX END =====
             }
 
             if (hotspotData.label && hotspotData.type !== 'arrow') {
