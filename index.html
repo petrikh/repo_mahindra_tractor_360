@@ -306,13 +306,13 @@
         #textInfoBox {
             position: absolute;
             top: 100px;
-            left: 130px;
-            width: 240px; /* A smaller width for the info box */
+            left: 310px;
+            width: 200px; /* Increased width for larger font */
             aspect-ratio: 735 / 463; /* IMPORTANT: Adjust this to match your info_box.png aspect ratio */
             background: url('res/ui/info_box.png') no-repeat center center;
             background-size: cover; /* Use 'cover' to fill the area without distorting the image */
             color: rgb(0, 0, 0);
-            padding: 25px; /* Adjust padding for the smaller size */
+            padding: 40px; /* Increased padding */
             z-index: 170;
             display: none; /* Hidden by default, will be set to 'flex' by JS */
             justify-content: center; /* Horizontally center content */
@@ -325,8 +325,10 @@
 
         #textInfoBox p {
             margin: 0;
-            font-size: 1rem;
-            line-height: 1.5; /* This will respect newline characters (\n) in the text */
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            font-weight: 600; /* Semi-Bold. Use 700 for Bold */
+            font-size: 18px;
+            line-height: 1.4; /* Adjusted for larger font size */
         }
 
         @keyframes fadeIn {
