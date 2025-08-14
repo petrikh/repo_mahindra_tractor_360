@@ -599,7 +599,7 @@
                         range: [20, 25], 
                         hotspots: [
                             {
-                              x: 66, y: 35, label: "A", type: "image_sequence_with_path_change", 
+                              x: 66, y: 42, label: "A", type: "image_sequence_with_path_change", 
                               soundUrl: "res/ui/bonnet_clip.mp3",
                               transitionVideo: "res/3D/bonnet_open.webm",
                               nextScrubbableVideo: "res/3D/bonnet_open_360.webm",
@@ -613,7 +613,7 @@
                     { 
                         range: [30, 35], 
                         hotspots: [
-                            { x: 57.5, y: 29, label: "A", type: "text_info", text:"Wet Type\nAir Filter" },
+                            { x: 57.5, y: 36, label: "A", type: "text_info", text:"Wet Type\nAir Filter" },
                             { x: 54, y: 56, label: "B", type: "text_info", text: "Dual\nClutch" },
                             { x: 68, y: 65, label: "C", type: "text_info", text: "Oil\nImmersed\nBrakes" }
                         ] 
@@ -643,7 +643,7 @@
                         range: [0, 5], 
                         hotspots: [
                             {
-                              x: 66, y: 35, label: "A", type: "image_sequence_with_path_change", 
+                              x: 66, y: 42, label: "A", type: "image_sequence_with_path_change", 
                               soundUrl: "res/ui/bonnet_clip.mp3",
                               transitionVideo: "res/3D/bonnet_close_anim.webm",
                               nextScrubbableVideo: "res/3D/bonnet_close.webm",
@@ -657,7 +657,7 @@
                     { 
                         range: [20, 25], 
                         hotspots: [
-                            { x: 57.5, y: 29, label: "A", type: "text_info", text:"Wet Type\nAir Filter" },
+                            { x: 57.5, y: 36, label: "A", type: "text_info", text:"Wet Type\nAir Filter" },
                             { x: 54, y: 56, label: "B", type: "text_info", text: "Dual\nClutch" },
                             { x: 68, y: 65, label: "C", type: "text_info", text: "Oil\nImmersed\nBrakes" }
                         ] 
@@ -921,7 +921,7 @@
             ctx = popupCanvas.getContext('2d');
 
             const hotspotVideo = document.createElement('video');
-            hotspotVideo.src = 'res/ui/hotspot.webm';
+            hotspotVideo.src = 'res/ui/explore_tractor.webm';
             hotspotVideo.loop = true;
             hotspotVideo.muted = !isSoundOn;
             hotspotVideo.playsInline = true;
@@ -1085,7 +1085,7 @@
                 arrowVideo.playsInline = true;
                 arrowVideo.play().catch(e => console.error("Autoplay failed for arrow video", e));
                 const arrowVideoTexture = new THREE.VideoTexture(arrowVideo);
-                const hotspotGeometry = new THREE.PlaneGeometry(15, 30);
+                const hotspotGeometry = new THREE.PlaneGeometry(15, 40);
                 const hotspotMaterial = new THREE.MeshBasicMaterial({ map: arrowVideoTexture, transparent: true, side: THREE.DoubleSide });
                 hotspotMaterial.onBeforeCompile = (shader) => {
                     shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
