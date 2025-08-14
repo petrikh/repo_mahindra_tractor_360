@@ -1085,7 +1085,7 @@
                 arrowVideo.playsInline = true;
                 arrowVideo.play().catch(e => console.error("Autoplay failed for arrow video", e));
                 const arrowVideoTexture = new THREE.VideoTexture(arrowVideo);
-                const hotspotGeometry = new THREE.PlaneGeometry(15, 10);
+                const hotspotGeometry = new THREE.PlaneGeometry(15, 30);
                 const hotspotMaterial = new THREE.MeshBasicMaterial({ map: arrowVideoTexture, transparent: true, side: THREE.DoubleSide });
                 hotspotMaterial.onBeforeCompile = (shader) => {
                     shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
@@ -1100,7 +1100,7 @@
                 };
                 hotspotObject = new THREE.Mesh(hotspotGeometry, hotspotMaterial);
                 if (hotspotData.rotation) {
-                    hotspotObject.rotation.set(Math.PI / 2, 0, hotspotData.rotation.z);
+                    hotspotObject.rotation.set(3.14/2, 0, 3.14/2);
                 }
             } else {
                 const spriteMaterial = new THREE.SpriteMaterial({ map: hotspotVideoTexture, transparent: true, depthWrite: false });
