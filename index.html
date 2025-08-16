@@ -19,7 +19,7 @@
         }
 
         /* Loader Styles */
-        #loader {
+        #loader, #popupLoader {
             position: fixed;
             top: 0;
             left: 0;
@@ -32,6 +32,13 @@
             align-items: center;
             z-index: 9999;
         }
+
+        /* Specific style for popup loader */
+        #popupLoader {
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 155; /* Ensure it's above popup content but below close button */
+        }
+
 
         .spinner {
             border: 8px solid rgba(255, 255, 255, 0.2);
@@ -73,8 +80,10 @@
             flex-direction: column;
             justify-content: flex-end; /* Align items to the bottom */
             align-items: center;
-            background: url("res/landing/landing.jpeg") no-repeat center bottom;
+            /* background: url("https://mahindra.inceptionx.io/res/landing/landing.jpeg") no-repeat center bottom; */ /* MODIFIED: Set via JS */
             background-size: cover;
+            background-position: center bottom;
+            background-repeat: no-repeat;
             text-align: center;
             z-index: 100;
             transition: opacity 1s ease-in-out; /* Smooth transition */
@@ -101,8 +110,10 @@
         }
 
         #startButton {
-            background: url("res/ui/enter.png") no-repeat center center;
+            /* background: url("https://mahindra.inceptionx.io/res/ui/enter.png") no-repeat center center; */ /* MODIFIED: Set via JS */
             background-size: contain;
+            background-position: center center;
+            background-repeat: no-repeat;
             border: none;
             width: 200px; /* Adjust size as needed */
             height: 50px;
@@ -157,8 +168,10 @@
             position: absolute;
             top: -45px; /* Position it above the video container */
             right: 0px;
-            background: url('res/ui/close.png') no-repeat center center;
+            /* background: url('https://mahindra.inceptionx.io/res/ui/close.png') no-repeat center center; */ /* MODIFIED: Set via JS */
             background-size: contain;
+            background-position: center center;
+            background-repeat: no-repeat;
             border: none;
             width: 40px;
             height: 40px;
@@ -209,16 +222,20 @@
             width: 80vw; /* Use up to 80% of the viewport width */
             max-width: 600px; /* But no more than 600px */
             aspect-ratio: 1895 / 884; /* Maintain a 2:1 aspect ratio, matching the image */
-            background: url('res/ui/instructions.png') no-repeat center center;
+            /* background: url('https://mahindra.inceptionx.io/res/ui/instructions.png') no-repeat center center; */ /* MODIFIED: Set via JS */
             background-size: cover; /* The image will cover the entire area without distortion */
+            background-position: center center;
+            background-repeat: no-repeat;
         }
 
         #closeInstructionBtn {
             position: absolute;
             top: 13px; /* Position inside the top edge */
             right: 20px; /* Position inside the right edge */
-            background: url('res/ui/close.png') no-repeat center center;
+            /* background: url('https://mahindra.inceptionx.io/res/ui/close.png') no-repeat center center; */ /* MODIFIED: Set via JS */
             background-size: contain;
+            background-position: center center;
+            background-repeat: no-repeat;
             border: none;
             width: 40px;
             height: 40px;
@@ -285,8 +302,10 @@
             position: absolute;
             top: 20px;
             right: 20px;
-            background: url('res/ui/close.png') no-repeat center center;
+            /* background: url('https://mahindra.inceptionx.io/res/ui/close.png') no-repeat center center; */ /* MODIFIED: Set via JS */
             background-size: contain;
+            background-position: center center;
+            background-repeat: no-repeat;
             border: none;
             width: 40px;
             height: 40px;
@@ -353,8 +372,10 @@
             left: 20%;
             width: 250px;
             aspect-ratio: 735 / 463;
-            background: url('res/ui/info_box.png') no-repeat center center;
+            /* background: url('https://mahindra.inceptionx.io/res/ui/info_box.png') no-repeat center center; */ /* MODIFIED: Set via JS */
             background-size: cover;
+            background-position: center center;
+            background-repeat: no-repeat;
             color: rgb(0, 0, 0);
             padding: 40px;
             z-index: 170;
@@ -455,20 +476,6 @@
             transform: scale(1.1);
         }
 
-        /* Set specific background images for each button */
-        #fullscreenBtn {
-            background-image: url('res/ui/full_screen.png');
-        }
-
-        #zoomIn360Btn {
-            background-image: url('res/ui/zoom_in.png');
-        }
-
-        #zoomOut360Btn {
-            background-image: url('res/ui/zoom_out.png');
-        }
-        /* The sound button's image is set via JavaScript */
-
     </style>
 </head>
 <body>
@@ -497,6 +504,12 @@
 
 
     <div id="optionsPopup">
+        <!-- NEW: Loader for the options popup -->
+        <div id="popupLoader" style="display: none;">
+            <div class="spinner"></div>
+            <p style="margin-top: 20px;">Preparing Experience...</p>
+        </div>
+
         <div id="popupContent">
             <!-- NEW: Wrapper for canvas and hotspots to maintain aspect ratio -->
             <div id="canvasWrapper">
@@ -507,7 +520,7 @@
             </div>
             
             <!-- The video element is now hidden and used as a data source for the canvas -->
-            <video id="popupVideo" src="res/3D/tractor_animation.webm" muted playsinline></video>
+            <video id="popupVideo" muted playsinline crossorigin="anonymous"></video>
             
             <div id="textInfoBox">
                 <p id="textInfoContent"></p>
@@ -530,7 +543,7 @@
     </div>
     
     <div id="static360Icon">
-        <video src="res/ui/360.webm" autoplay loop muted playsinline></video>
+        <video autoplay loop muted playsinline crossorigin="anonymous"></video>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -582,6 +595,14 @@
         // *** FIX: Flag to prevent dragging before video metadata is loaded ***
         let isVideoReadyForScrub = false;
 
+        // *** OPTIMIZATION: Variables for hotspot management ***
+        let allHotspotElements = [];
+        let hotspotsInitialized = false;
+
+        // *** MODIFIED: Asset cache to store preloaded elements ***
+        const assetCache = {};
+
+
         // HTML elements
         const loader = document.getElementById('loader');
         const loadingProgress = document.getElementById('loadingProgress');
@@ -591,6 +612,7 @@
         const videoPlayer = document.getElementById('videoPlayer');
         const closeVideoBtn = document.getElementById('closeVideoBtn');
         const optionsPopup = document.getElementById('optionsPopup');
+        const popupLoader = document.getElementById('popupLoader'); // New popup loader element
         const popupContent = document.getElementById('popupContent');
         const popupVideo = document.getElementById('popupVideo');
         const closePopupBtn = document.getElementById('closePopupBtn');
@@ -598,6 +620,7 @@
         const textInfoBox = document.getElementById('textInfoBox');
         const textInfoContent = document.getElementById('textInfoContent');
         const instructionPopupOverlay = document.getElementById('instructionPopupOverlay');
+        const instructionPopupContent = document.getElementById('instructionPopupContent');
         const closeInstructionBtn = document.getElementById('closeInstructionBtn');
         const static360Icon = document.getElementById('static360Icon');
         const optionSlider = document.getElementById('optionSlider'); // Keep reference, though hidden
@@ -611,9 +634,9 @@
 
 
         // Direct URLs for panoramic images and assets
-        const panorama1ImageUrl = "res/nav/1.png";
-        const panorama2ImageUrl = "res/nav/2.png";
-        const panorama3ImageUrl = "res/nav/3.png";
+        const panorama1ImageUrl = "https://mahindra.inceptionx.io/res/nav/1.png";
+        const panorama2ImageUrl = "https://mahindra.inceptionx.io/res/nav/2.png";
+        const panorama3ImageUrl = "https://mahindra.inceptionx.io/res/nav/3.png";
 
         // Data structure for panoramic images and their hotspots
         const panoData = [
@@ -642,7 +665,7 @@
                             hotspots: [
                                 {
                                   x: 66, y: 42, label: "A", type: "transition", 
-                                  soundUrl: "res/ui/bonnet_clip.mp3",
+                                  soundUrl: "https://mahindra.inceptionx.io/res/ui/bonnet_clip.mp3",
                                   transitionRange: [3.367, 6.733], // Time range of the open-bonnet animation
                                   nextState: 'bonnetOpen', // State to switch to after animation
                                   nextStateStartTime: 6.5 // <<< MODIFIED: Specific start time for the next state
@@ -727,39 +750,39 @@
         // NEW: Array of all assets to preload
         const assetsToLoad = [
             // Landing
-            'res/landing/landing.jpeg',
-            'res/ui/enter.png',
+            'https://mahindra.inceptionx.io/res/landing/landing.jpeg',
+            'https://mahindra.inceptionx.io/res/ui/enter.png',
             // UI
-            'res/ui/close.png',
-            'res/ui/instructions.png',
-            'res/ui/360.webm',
-            'res/ui/info_box.png',
-            'res/ui/full_screen.png',
-            'res/ui/zoom_in.png',
-            'res/ui/zoom_out.png',
-            'res/ui/vol_on.png',
-            'res/ui/vol_off.png',
-            'res/ui/nav_arrow.webm',
-            'res/ui/explore_tractor.webm',
-            'res/ui/hotspot_bonnet.png',
-            'res/ui/hotspot_normal.png',
-            'res/ui/hotspot.webm',
-            'res/ui/hotspot_optionspopup.webm',
+            'https://mahindra.inceptionx.io/res/ui/close.png',
+            'https://mahindra.inceptionx.io/res/ui/instructions.png',
+            'https://mahindra.inceptionx.io/res/ui/360.webm',
+            'https://mahindra.inceptionx.io/res/ui/info_box.png',
+            'https://mahindra.inceptionx.io/res/ui/full_screen.png',
+            'https://mahindra.inceptionx.io/res/ui/zoom_in.png',
+            'https://mahindra.inceptionx.io/res/ui/zoom_out.png',
+            'https://mahindra.inceptionx.io/res/ui/vol_on.png',
+            'https://mahindra.inceptionx.io/res/ui/vol_off.png',
+            'https://mahindra.inceptionx.io/res/ui/nav_arrow.webm',
+            'https://mahindra.inceptionx.io/res/ui/explore_tractor.webm',
+            'https://mahindra.inceptionx.io/res/ui/hotspot_bonnet.png',
+            'https://mahindra.inceptionx.io/res/ui/hotspot_normal.png',
+            'https://mahindra.inceptionx.io/res/ui/hotspot.webm',
+            'https://mahindra.inceptionx.io/res/ui/hotspot_optionspopup.webm',
             // Panoramas
-            'res/nav/1.png',
-            'res/nav/2.png',
-            'res/nav/3.png',
+            panorama1ImageUrl,
+            panorama2ImageUrl,
+            panorama3ImageUrl,
             // 3D Video (Single merged file)
-            'res/3D/tractor_animation.webm',
+            'https://mahindra.inceptionx.io/res/3D/tractor_animation.webm',
             // Sounds
-            'res/ui/bonnet_clip.mp3'
+            'https://mahindra.inceptionx.io/res/ui/bonnet_clip.mp3'
         ];
 
         
         /**
-         * NEW: Preloads all necessary assets and updates the loader.
+         * *** MODIFIED: Preloads assets by fetching them as blobs and creating blob URLs. ***
          */
-        function preloadAssets() {
+        async function preloadAssets() {
             let loadedCount = 0;
             const totalAssets = assetsToLoad.length;
             
@@ -768,44 +791,64 @@
                 return;
             }
 
-            assetsToLoad.forEach(url => {
-                const extension = url.split('.').pop().toLowerCase();
-                
-                const assetLoaded = () => {
+            const promises = assetsToLoad.map(async (url) => {
+                try {
+                    // Using a proxy to bypass potential CORS issues in some environments
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const blob = await response.blob();
+                    assetCache[url] = URL.createObjectURL(blob);
+                } catch (error) {
+                    console.error(`Failed to load asset: ${url}`, error);
+                    assetCache[url] = url; // Fallback to direct URL on error
+                } finally {
                     loadedCount++;
                     const progress = Math.round((loadedCount / totalAssets) * 100);
                     loadingProgress.textContent = `Loading ${progress}%`;
-                    if (loadedCount === totalAssets) {
-                        onLoadingComplete();
-                    }
-                };
-
-                if (['jpg', 'jpeg', 'png', 'gif'].includes(extension)) {
-                    const img = new Image();
-                    img.src = url;
-                    img.onload = assetLoaded;
-                    img.onerror = assetLoaded; // Count errors as loaded to not block the app
-                } else if (['webm', 'mp4'].includes(extension)) {
-                    const video = document.createElement('video');
-                    video.src = url;
-                    video.oncanplaythrough = assetLoaded;
-                    video.onerror = assetLoaded;
-                } else if (['mp3', 'wav', 'ogg'].includes(extension)) {
-                     const audio = new Audio();
-                     audio.src = url;
-                     audio.oncanplaythrough = assetLoaded;
-                     audio.onerror = assetLoaded;
-                } else {
-                    // For other file types or if extension is unknown, just count it as loaded.
-                    assetLoaded();
                 }
             });
+
+            await Promise.all(promises);
+            onLoadingComplete();
         }
         
         /**
-         * NEW: Called when all assets are preloaded.
+         * *** NEW: Applies cached assets (as blob URLs) to elements after loading. ***
+         */
+        function applyCachedAssets() {
+            // Landing Page
+            landingPage.style.backgroundImage = `url(${assetCache['https://mahindra.inceptionx.io/res/landing/landing.jpeg']})`;
+            startButton.style.backgroundImage = `url(${assetCache['https://mahindra.inceptionx.io/res/ui/enter.png']})`;
+            
+            // UI Buttons
+            const closeBtnUrl = assetCache['https://mahindra.inceptionx.io/res/ui/close.png'];
+            closeVideoBtn.style.backgroundImage = `url(${closeBtnUrl})`;
+            closeInstructionBtn.style.backgroundImage = `url(${closeBtnUrl})`;
+            closePopupBtn.style.backgroundImage = `url(${closeBtnUrl})`;
+
+            // Instruction Popup
+            instructionPopupContent.style.backgroundImage = `url(${assetCache['https://mahindra.inceptionx.io/res/ui/instructions.png']})`;
+
+            // Info Box
+            textInfoBox.style.backgroundImage = `url(${assetCache['https://mahindra.inceptionx.io/res/ui/info_box.png']})`;
+            
+            // Toolbar Buttons
+            fullscreenBtn.style.backgroundImage = `url(${assetCache['https://mahindra.inceptionx.io/res/ui/full_screen.png']})`;
+            zoomIn360Btn.style.backgroundImage = `url(${assetCache['https://mahindra.inceptionx.io/res/ui/zoom_in.png']})`;
+            zoomOut360Btn.style.backgroundImage = `url(${assetCache['https://mahindra.inceptionx.io/res/ui/zoom_out.png']})`;
+            
+            // Sound button is handled separately
+            updateSoundButton();
+        }
+        
+        /**
+         * MODIFIED: Called when all assets are preloaded.
          */
         function onLoadingComplete() {
+            applyCachedAssets(); // Apply all cached images to their elements
+            
             // Hide loader with a fade-out effect
             loader.style.transition = 'opacity 0.5s ease';
             loader.style.opacity = '0';
@@ -956,18 +999,15 @@
          * MODIFIED: Handles mouse move for both panning and video scrubbing within the current state's time range.
          */
         function onPopupMouseMove(event) {
-            // *** FIX: Guard against dragging before video is ready ***
             if (!isPopupDragging || !isVideoReadyForScrub) return;
 
             if (zoomLevel > 1) {
-                // Panning logic (existing)
                 const deltaX = event.clientX - startPopupDragX;
                 const deltaY = event.clientY - startPopupDragY;
                 panX = startPanX + deltaX;
                 panY = startPanY + deltaY;
-                drawVideoFrame(); // Redraw canvas with new pan
+                drawVideoFrame();
             } else {
-                // Scrubbing logic
                 if (!popupVideo.duration || popupVideo.seeking) return;
 
                 const stateConfig = hotspotConfigurations.states[currentVideoState];
@@ -979,14 +1019,12 @@
                 const deltaX = event.clientX - startPopupDragX;
                 let newTime = startVideoTimeOnDrag + deltaX * sensitivity;
 
-                // Seamless looping within the scrub range
                 if (newTime < scrubStart) {
                     newTime = scrubEnd - (scrubStart - newTime) % scrubDuration;
                 } else if (newTime > scrubEnd) {
                     newTime = scrubStart + (newTime - scrubStart) % scrubDuration;
                 }
 
-                // Only update if the time has changed to avoid flooding seek requests
                 if (Math.abs(newTime - popupVideo.currentTime) > 0.01) {
                     popupVideo.currentTime = newTime;
                     updateHotspotsForVideo(newTime);
@@ -998,7 +1036,6 @@
          * Handles the touch start event for the popup video.
          */
         function onPopupTouchStart(event) {
-            // *** FIX: Guard against dragging before video is ready ***
             if (!isVideoReadyForScrub || event.touches.length !== 1 || event.target.closest('.hotspot-2d')) return;
 
             isPopupDragging = true;
@@ -1024,7 +1061,6 @@
          * MODIFIED: Handles touch move for both panning and video scrubbing within the current state's time range.
          */
         function onPopupTouchMove(event) {
-            // *** FIX: Guard against dragging before video is ready ***
             if (!isPopupDragging || !isVideoReadyForScrub || event.touches.length !== 1) return;
             event.preventDefault();
 
@@ -1046,7 +1082,6 @@
                 const sensitivity = (scrubDuration / popupCanvas.clientWidth) * 2;
                 let newTime = startVideoTimeOnDrag + deltaX * sensitivity;
                 
-                // Seamless looping within the scrub range
                 if (newTime < scrubStart) {
                     newTime = scrubEnd - (scrubStart - newTime) % scrubDuration;
                 } else if (newTime > scrubEnd) {
@@ -1067,16 +1102,23 @@
             // NEW: Initialize canvas elements
             popupCanvas = document.getElementById('popupCanvas');
             ctx = popupCanvas.getContext('2d');
-
-            const hotspotVideo = document.createElement('video');
-            hotspotVideo.src = 'res/ui/explore_tractor.webm';
-            hotspotVideo.loop = true;
-            hotspotVideo.muted = !isSoundOn;
-            hotspotVideo.playsInline = true;
-            hotspotVideo.play();
-            hotspotVideoTexture = new THREE.VideoTexture(hotspotVideo);
             
-            bonnetSound = new Audio('res/ui/bonnet_clip.mp3');
+            // Set video sources from cache
+            popupVideo.src = assetCache['https://mahindra.inceptionx.io/res/3D/tractor_animation.webm'];
+            document.querySelector('#static360Icon video').src = assetCache['https://mahindra.inceptionx.io/res/ui/360.webm'];
+
+            // Create a video element for the hotspot texture
+            const hotspotVideoElement = document.createElement('video');
+            hotspotVideoElement.src = assetCache['https://mahindra.inceptionx.io/res/ui/explore_tractor.webm'];
+            hotspotVideoElement.crossOrigin = "anonymous";
+            hotspotVideoElement.loop = true;
+            hotspotVideoElement.muted = !isSoundOn;
+            hotspotVideoElement.playsInline = true;
+            hotspotVideoElement.play();
+            hotspotVideoTexture = new THREE.VideoTexture(hotspotVideoElement);
+            
+            // Create audio element for bonnet sound
+            bonnetSound = new Audio(assetCache['https://mahindra.inceptionx.io/res/ui/bonnet_clip.mp3']);
             bonnetSound.loop = true;
 
             scene = new THREE.Scene();
@@ -1111,6 +1153,7 @@
             closeVideoBtn.addEventListener('click', hideVideo);
             closePopupBtn.addEventListener('click', hideOptionsPopup);
             
+            // MODIFIED: Add a persistent listener to draw frames whenever a seek is completed.
             popupVideo.addEventListener('seeked', drawVideoFrame);
             
             popupContent.addEventListener('mousedown', onPopupMouseDown);
@@ -1188,7 +1231,11 @@
         function loadPanoramicImage(imageUrl, panoIndex) {
             hotspotMeshes.forEach(mesh => scene.remove(mesh));
             hotspotMeshes = [];
-            new THREE.TextureLoader().load(imageUrl, (texture) => {
+            
+            const loader = new THREE.TextureLoader();
+            const blobUrl = assetCache[imageUrl];
+
+            const onTextureLoad = (texture) => {
                 texture.wrapS = THREE.RepeatWrapping;
                 texture.repeat.x = -1;
                 material.map = texture;
@@ -1196,15 +1243,22 @@
                 const currentPano = panoData[panoIndex];
                 if (currentPano && currentPano.hotspots) {
                     currentPano.hotspots.forEach(createHotspot);
-                }},
-                undefined,
-                (error) => {
-                    console.error('An error occurred loading the texture:', error);
-                    material.map = null;
-                    material.color.setHex(0x1a1a1a);
-                    material.needsUpdate = true;
                 }
-            );
+            };
+            
+            const onTextureError = (error) => {
+                 console.error('An error occurred loading the texture:', error);
+                 material.map = null;
+                 material.color.setHex(0x1a1a1a);
+                 material.needsUpdate = true;
+            };
+
+            if (blobUrl) {
+                 loader.load(blobUrl, onTextureLoad, undefined, onTextureError);
+            } else {
+                 // Fallback to original URL if blob somehow failed
+                 loader.load(imageUrl, onTextureLoad, undefined, onTextureError);
+            }
         }
 
         /**
@@ -1231,7 +1285,8 @@
             let hotspotObject;
             if (hotspotData.type === "arrow") {
                 const arrowVideo = document.createElement('video');
-                arrowVideo.src = 'res/ui/nav_arrow.webm';
+                arrowVideo.src = assetCache['https://mahindra.inceptionx.io/res/ui/nav_arrow.webm'];
+                arrowVideo.crossOrigin = "anonymous";
                 arrowVideo.loop = true;
                 arrowVideo.muted = true;
                 arrowVideo.playsInline = true;
@@ -1344,30 +1399,32 @@
          */
         function showOptionsPopup() {
             optionsPopup.style.display = 'flex';
+            popupLoader.style.display = 'flex'; // Show the loader
             popupCanvas.style.display = 'block';
             
-            // Set the initial state
+            initialize2DHotspots();
+
             currentVideoState = 'bonnetClosed';
             const initialStateConfig = hotspotConfigurations.states[currentVideoState];
 
             const setupVideoAndCanvas = () => {
-                // Set canvas internal resolution to match video
                 popupCanvas.width = popupVideo.videoWidth;
                 popupCanvas.height = popupVideo.videoHeight;
-
-                // Size the content to cover the screen
                 sizePopupContent(); 
                 
-                // Set video to the start of the initial scrubbable range
+                // This one-time listener handles the UI changes after the *first* frame is ready.
+                const onFirstSeek = () => {
+                    updateHotspotsForVideo(popupVideo.currentTime);
+                    hotspot2DContainer.style.display = 'block';
+                    isVideoReadyForScrub = true;
+                    popupLoader.style.display = 'none';
+                    popupVideo.removeEventListener('seeked', onFirstSeek); // Clean up this specific listener
+                }
+                popupVideo.addEventListener('seeked', onFirstSeek);
+                
+                // Set video to the start time, which will trigger the 'seeked' event for the first frame.
                 popupVideo.currentTime = initialStateConfig.scrubRange[0];
                 
-                updateHotspotsForVideo(popupVideo.currentTime);
-                
-                hotspot2DContainer.style.display = 'block';
-                
-                // *** FIX: Set the ready flag to true only when setup is complete ***
-                isVideoReadyForScrub = true;
-
                 popupVideo.onloadedmetadata = null;
             };
 
@@ -1389,6 +1446,7 @@
             hideTextInfo();
             static360Icon.style.opacity = '1';
             verticalToolbar.style.display = 'flex';
+            popupLoader.style.display = 'none'; // Ensure loader is hidden on close
 
             // *** FIX: Reset the ready flag when the popup is closed ***
             isVideoReadyForScrub = false;
@@ -1424,57 +1482,76 @@
          */
         function playSound(url) {
             if (!isSoundOn || !url) return;
-            const audio = new Audio(url);
+            const audio = new Audio(assetCache[url]);
             audio.play().catch(e => console.error("Error playing sound:", e));
         }
 
         /**
-         * Creates 2D hotspots for the current video frame.
+         * *** OPTIMIZATION: Creates all 2D hotspot elements once. ***
          */
-        function create2DHotspots(hotspotsData) {
-            hotspotsData.forEach(hotspotData => {
-                const hotspotElement = document.createElement('div');
-                hotspotElement.className = 'hotspot-2d';
-                hotspotElement.style.left = `${hotspotData.x}%`;
-                hotspotElement.style.top = `${hotspotData.y}%`;
-                hotspotElement.title = hotspotData.label;
-                
-                const hotspotImage = document.createElement('img');
-                hotspotImage.src = (hotspotData.type === "transition") ? 'res/ui/hotspot_bonnet.png' : 'res/ui/hotspot_normal.png';
-                hotspotImage.style.display = 'block';
-                hotspotElement.appendChild(hotspotImage);
+        function initialize2DHotspots() {
+            if (hotspotsInitialized) return;
 
-                const hotspotVideo = document.createElement('video');
-                hotspotVideo.src = (hotspotData.type === "transition") ? 'res/ui/hotspot.webm' : 'res/ui/hotspot_optionspopup.webm';
-                hotspotVideo.loop = true;
-                hotspotVideo.muted = true;
-                hotspotVideo.playsInline = true;
-                hotspotVideo.style.display = 'none';
-                hotspotElement.appendChild(hotspotVideo);
+            hotspot2DContainer.innerHTML = ''; // Clear just in case
 
-                hotspotElement.addEventListener('click', () => {
-                    if (activeHotspotVideo && activeHotspotVideo !== hotspotVideo) {
-                        activeHotspotVideo.style.display = 'none';
-                        activeHotspotVideo.pause();
-                        const siblingImg = activeHotspotVideo.parentElement.querySelector('img');
-                        if (siblingImg) siblingImg.style.display = 'block';
-                    }
+            for (const stateName in hotspotConfigurations.states) {
+                const stateConfig = hotspotConfigurations.states[stateName];
+                stateConfig.options.forEach(option => {
+                    option.hotspots.forEach(hotspotData => {
+                        const hotspotElement = document.createElement('div');
+                        hotspotElement.className = 'hotspot-2d';
+                        hotspotElement.style.left = `${hotspotData.x}%`;
+                        hotspotElement.style.top = `${hotspotData.y}%`;
+                        hotspotElement.title = hotspotData.label;
+                        hotspotElement.style.display = 'none'; // Initially hidden
 
-                    hotspotImage.style.display = 'none';
-                    hotspotVideo.style.display = 'block';
-                    hotspotVideo.currentTime = 0;
-                    hotspotVideo.play();
-                    activeHotspotVideo = hotspotVideo;
+                        // Store data for visibility checks
+                        hotspotElement.dataset.state = stateName;
+                        hotspotElement.dataset.rangeStart = option.range[0];
+                        hotspotElement.dataset.rangeEnd = option.range[1];
+                        
+                        const hotspotImage = new Image();
+                        hotspotImage.src = assetCache[(hotspotData.type === "transition") ? 'https://mahindra.inceptionx.io/res/ui/hotspot_bonnet.png' : 'https://mahindra.inceptionx.io/res/ui/hotspot_normal.png'];
+                        hotspotImage.style.display = 'block';
+                        hotspotElement.appendChild(hotspotImage);
 
-                    if (hotspotData.type === "transition") {
-                        handleTransition(hotspotData);
-                    } else if (hotspotData.type === "text_info") {
-                        showTextInfo(hotspotData.text);
-                    }
+                        const hotspotVideo = document.createElement('video');
+                        const hotspotVideoSrc = (hotspotData.type === "transition") ? 'https://mahindra.inceptionx.io/res/ui/hotspot.webm' : 'https://mahindra.inceptionx.io/res/ui/hotspot_optionspopup.webm';
+                        hotspotVideo.src = assetCache[hotspotVideoSrc];
+                        hotspotVideo.crossOrigin = "anonymous";
+                        hotspotVideo.loop = true;
+                        hotspotVideo.muted = true;
+                        hotspotVideo.playsInline = true;
+                        hotspotVideo.style.display = 'none';
+                        hotspotElement.appendChild(hotspotVideo);
+
+                        hotspotElement.addEventListener('click', () => {
+                            if (activeHotspotVideo && activeHotspotVideo !== hotspotVideo) {
+                                activeHotspotVideo.style.display = 'none';
+                                activeHotspotVideo.pause();
+                                const siblingImg = activeHotspotVideo.parentElement.querySelector('img');
+                                if (siblingImg) siblingImg.style.display = 'block';
+                            }
+
+                            hotspotImage.style.display = 'none';
+                            hotspotVideo.style.display = 'block';
+                            hotspotVideo.currentTime = 0;
+                            hotspotVideo.play();
+                            activeHotspotVideo = hotspotVideo;
+
+                            if (hotspotData.type === "transition") {
+                                handleTransition(hotspotData);
+                            } else if (hotspotData.type === "text_info") {
+                                showTextInfo(hotspotData.text);
+                            }
+                        });
+
+                        hotspot2DContainer.appendChild(hotspotElement);
+                        allHotspotElements.push(hotspotElement);
+                    });
                 });
-
-                hotspot2DContainer.appendChild(hotspotElement);
-            });
+            }
+            hotspotsInitialized = true;
         }
         
         /**
@@ -1525,20 +1602,22 @@
 
 
         /**
-         * MODIFIED: Updates hotspots based on the video's current time and state.
+         * *** OPTIMIZATION: Updates hotspot visibility instead of recreating them. ***
          */
         function updateHotspotsForVideo(videoTime) {
-            hotspot2DContainer.innerHTML = '';
-            
-            const stateConfig = hotspotConfigurations.states[currentVideoState];
-            if (!stateConfig) return;
+            allHotspotElements.forEach(element => {
+                const state = element.dataset.state;
+                const rangeStart = parseFloat(element.dataset.rangeStart);
+                const rangeEnd = parseFloat(element.dataset.rangeEnd);
 
-            // Find the correct set of hotspots for the current time
-            const option = stateConfig.options.find(opt => videoTime >= opt.range[0] && videoTime <= opt.range[1]);
-            if (option && option.hotspots) {
-                create2DHotspots(option.hotspots);
-            }
+                if (state === currentVideoState && videoTime >= rangeStart && videoTime <= rangeEnd) {
+                    element.style.display = 'block';
+                } else {
+                    element.style.display = 'none';
+                }
+            });
         }
+
 
         /**
          * Shows the text info box with a given text.
@@ -1677,10 +1756,12 @@
         }
         
         /**
-         * Updates the sound button's background image based on the sound state.
+         * MODIFIED: Updates the sound button's background image based on the sound state, using cached assets.
          */
         function updateSoundButton() {
-            soundBtn.style.backgroundImage = isSoundOn ? "url('res/ui/vol_on.png')" : "url('res/ui/vol_off.png')";
+            const onImgUrl = assetCache['https://mahindra.inceptionx.io/res/ui/vol_on.png'];
+            const offImgUrl = assetCache['https://mahindra.inceptionx.io/res/ui/vol_off.png'];
+            soundBtn.style.backgroundImage = isSoundOn ? `url(${onImgUrl})` : `url(${offImgUrl})`;
         }
         
         // Hide landing page initially to show loader first
